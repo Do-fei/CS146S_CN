@@ -8,6 +8,8 @@ data/
 .env
 *.egg-info/
 
+docs/manual/_shots/
+
 # Flutter
 app/.dart_tool/
 app/.idea/

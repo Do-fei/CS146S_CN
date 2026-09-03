@@ -4,6 +4,8 @@
 
 当前 MVP **不调用付费云 API**。未配置密钥时，OCR / 摘要 / 邮件全部走本地 Mock，手机上可以完整体验登录、扫描、出锅、翻译、回锅和同步流程。
 
+**图文使用说明书（配当前 APK）：** [docs/使用说明书.md](docs/使用说明书.md) · 浏览版 [docs/manual/index.html](docs/manual/index.html)
+
 ## 在安卓手机上安装使用
 
 1. 把后端部署到 **Railway**（推荐，见下方），或在电脑上启动：
