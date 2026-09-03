@@ -6,6 +6,8 @@
 
 **图文使用说明书（配当前 APK）：** [docs/使用说明书.md](docs/使用说明书.md) · 浏览版 [docs/manual/index.html](docs/manual/index.html)
 
+**产品预告片（MP4，约 49 秒）：** [docs/manual/一纸读书煲-产品预告.mp4](docs/manual/一纸读书煲-产品预告.mp4)
+
 ## 在安卓手机上安装使用
 
 1. 把后端部署到 **Railway**（推荐，见下方），或在电脑上启动：
