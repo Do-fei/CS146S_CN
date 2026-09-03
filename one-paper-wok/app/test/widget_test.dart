@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:one_paper_wok/core/config.dart';
 import 'package:one_paper_wok/core/models.dart';
 import 'package:one_paper_wok/theme/app_theme.dart';
 
@@ -42,5 +43,10 @@ void main() {
       'stage': 'ocr',
       'progress': 40,
     }).isTerminal, isFalse);
+  });
+
+  test('normalizeApiBaseUrl adds scheme and strips trailing slash', () {
+    expect(normalizeApiBaseUrl('192.168.1.8:8000'), 'http://192.168.1.8:8000');
+    expect(normalizeApiBaseUrl('http://10.0.0.2:8000/'), 'http://10.0.0.2:8000');
   });
 }

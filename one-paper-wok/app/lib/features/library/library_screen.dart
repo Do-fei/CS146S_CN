@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/api_client.dart';
+import '../../core/config.dart';
 import '../../core/models.dart';
 import '../../core/sync_engine.dart';
 import '../../theme/app_theme.dart';
@@ -31,6 +32,33 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
     } catch (_) {}
   }
 
+  Future<void> _editServer() async {
+    final controller = TextEditingController(text: ref.read(serverUrlProvider));
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('服务器地址'),
+        content: TextField(
+          controller: controller,
+          keyboardType: TextInputType.url,
+          decoration: const InputDecoration(hintText: 'http://192.168.1.8:8000'),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('取消')),
+          FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('保存')),
+        ],
+      ),
+    );
+    if (ok == true) {
+      await ref.read(serverUrlProvider.notifier).setUrl(controller.text);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('已保存 ${ref.read(serverUrlProvider)}')),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final books = ref.watch(libraryControllerProvider);
@@ -38,6 +66,11 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
       appBar: AppBar(
         title: const Text('我的锅', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 26)),
         actions: [
+          IconButton(
+            tooltip: '服务器',
+            onPressed: () => _editServer(),
+            icon: const Icon(Icons.dns_outlined),
+          ),
           IconButton(
             tooltip: '同步',
             onPressed: () => ref.read(libraryControllerProvider.notifier).refresh(),

@@ -12,14 +12,14 @@ import 'models.dart';
 final authStoreProvider = Provider<AuthStore>((ref) => AuthStore());
 
 final apiClientProvider = Provider<ApiClient>((ref) {
-  return ApiClient(ref.watch(authStoreProvider));
+  return ApiClient(ref.watch(authStoreProvider), ref.watch(serverUrlProvider));
 });
 
 class ApiClient {
-  ApiClient(this._auth) {
+  ApiClient(this._auth, this.baseUrl) {
     _dio = Dio(
       BaseOptions(
-        baseUrl: AppConfig.apiBaseUrl,
+        baseUrl: baseUrl,
         connectTimeout: const Duration(seconds: 20),
         receiveTimeout: const Duration(seconds: 120),
       ),
@@ -59,6 +59,7 @@ class ApiClient {
   }
 
   final AuthStore _auth;
+  final String baseUrl;
   late final Dio _dio;
   bool _refreshing = false;
 
@@ -68,7 +69,7 @@ class ApiClient {
     try {
       final refresh = await _auth.refreshToken;
       if (refresh == null) return false;
-      final resp = await Dio(BaseOptions(baseUrl: AppConfig.apiBaseUrl)).post(
+      final resp = await Dio(BaseOptions(baseUrl: baseUrl)).post(
         '/auth/refresh',
         data: {'refresh_token': refresh},
       );
@@ -87,6 +88,11 @@ class ApiClient {
 
   Future<Map<String, dynamic>> sendCode(String email) async {
     final resp = await _dio.post('/auth/send-code', data: {'email': email});
+    return Map<String, dynamic>.from(resp.data as Map);
+  }
+
+  Future<Map<String, dynamic>> health() async {
+    final resp = await _dio.get('/health');
     return Map<String, dynamic>.from(resp.data as Map);
   }
 
@@ -189,10 +195,10 @@ class ApiClient {
   }
 
   String pageImageUrl(String bookId, int pageIndex) =>
-      '${AppConfig.apiBaseUrl}/books/$bookId/pages/$pageIndex/image';
+      '$baseUrl/books/$bookId/pages/$pageIndex/image';
 
   String annotationImageUrl(String bookId, String annotationId) =>
-      '${AppConfig.apiBaseUrl}/books/$bookId/annotations/$annotationId/image';
+      '$baseUrl/books/$bookId/annotations/$annotationId/image';
 
   Future<Map<String, String>> authHeader() async {
     final token = await _auth.accessToken;
