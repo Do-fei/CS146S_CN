@@ -1,0 +1,113 @@
+<!doctype html><meta charset="utf-8">
+<style>
+@font-face {
+  font-family: NotoSC;
+  src: url("file:///tmp/trailer2/NotoSansSC.ttf");
+  font-weight: 100 900;
+}
+:root {
+  --orange: #E8734A;
+  --cream: #F4EDE3;
+  --ink: #F6F3EE;
+  --dim: rgba(246,243,238,.55);
+  --line: rgba(255,255,255,.08);
+  --glass: rgba(255,255,255,.06);
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body {
+  width: 390px; height: 844px; overflow: hidden;
+  background: #070708;
+  color: var(--ink);
+  font-family: NotoSC, sans-serif;
+}
+.screen {
+  width: 390px; height: 844px; position: relative;
+  background:
+    radial-gradient(1200px 480px at 50% -10%, rgba(232,115,74,.16), transparent 55%),
+    radial-gradient(900px 500px at 80% 120%, rgba(74,144,217,.10), transparent 50%),
+    #070708;
+}
+.status {
+  height: 54px; padding: 16px 28px 0;
+  display: flex; justify-content: space-between; font-size: 13px; font-weight: 600;
+  letter-spacing: .04em;
+}
+.island {
+  position: absolute; top: 12px; left: 50%; transform: translateX(-50%);
+  width: 118px; height: 34px; background: #000; border-radius: 20px;
+}
+.kicker {
+  color: var(--orange); font-size: 12px; font-weight: 600;
+  letter-spacing: .28em; text-transform: uppercase;
+}
+h1 { font-size: 34px; font-weight: 280; letter-spacing: .04em; line-height: 1.2; }
+h2 { font-size: 22px; font-weight: 400; letter-spacing: .02em; }
+p { color: var(--dim); font-size: 14px; line-height: 1.65; }
+.pad { padding: 8px 22px 0; }
+.card {
+  background: var(--glass);
+  border: 1px solid var(--line);
+  border-radius: 22px;
+  padding: 16px 18px;
+}
+.row { display: flex; gap: 10px; }
+.nav {
+  position: absolute; left: 18px; right: 18px; bottom: 18px;
+  height: 58px; border-radius: 20px;
+  background: rgba(20,18,16,.72);
+  border: 1px solid var(--line);
+  display: flex; align-items: center; justify-content: space-around;
+  font-size: 11px; letter-spacing: .16em; color: var(--dim);
+}
+.nav .on { color: var(--orange); }
+.cover {
+  height: 168px; border-radius: 16px; padding: 14px;
+  display: flex; flex-direction: column; justify-content: flex-end;
+  font-size: 15px; font-weight: 500; color: #fff;
+}
+.pill {
+  display: inline-flex; align-items: center; gap: 6px;
+  border-radius: 999px; padding: 6px 12px; font-size: 12px;
+  background: rgba(232,115,74,.14); color: var(--orange);
+  letter-spacing: .08em;
+}
+.bar {
+  height: 4px; border-radius: 4px; background: rgba(255,255,255,.08); overflow: hidden;
+}
+.bar > i { display: block; height: 100%; width: 68%; background: var(--orange); }
+.chat { display: flex; flex-direction: column; gap: 10px; }
+.bubble {
+  max-width: 78%; padding: 12px 14px; border-radius: 18px; font-size: 14px; line-height: 1.55;
+}
+.me { align-self: flex-end; background: var(--orange); color: #fff; border-bottom-right-radius: 6px; }
+.ai {
+  align-self: flex-start; background: var(--glass); border: 1px solid var(--line);
+  border-bottom-left-radius: 6px; color: var(--ink);
+}
+.feed { display: flex; flex-direction: column; gap: 10px; }
+.tiny { font-size: 11px; letter-spacing: .18em; color: var(--dim); }
+</style>
+<body><div class="island"></div>
+<div class="screen">
+  <div class="status"><span>9:41</span><span>⬤⬤⬤</span></div>
+  
+<div class="pad" style="padding-top:12px;text-align:center">
+  <div class="kicker">AI SLOW COOK</div>
+  <h1 style="margin:12px 0 6px">慢炖进行中</h1>
+  <p>模型在锅里工作，你可以离开。</p>
+  <div style="margin:28px auto 8px;width:228px;height:228px;border-radius:50%;
+    background:conic-gradient(#E8734A 0 250deg, rgba(255,255,255,.08) 0 360deg);
+    display:grid;place-items:center">
+    <div style="width:188px;height:188px;border-radius:50%;background:#0b0b0c;display:flex;flex-direction:column;align-items:center;justify-content:center">
+      <div style="font-size:48px;font-weight:250;letter-spacing:.04em">72</div>
+      <div class="tiny">PERCENT</div>
+    </div>
+  </div>
+  <div class="row" style="margin-top:22px;text-align:left">
+    <div class="card" style="flex:1"><div class="tiny">01</div><h2 style="font-size:16px;margin-top:6px">OCR</h2><p style="font-size:12px">文字已醒来</p></div>
+    <div class="card" style="flex:1"><div class="tiny">02</div><h2 style="font-size:16px;margin-top:6px">章节</h2><p style="font-size:12px">结构已分好</p></div>
+    <div class="card" style="flex:1"><div class="tiny">03</div><h2 style="font-size:16px;margin-top:6px">一纸</h2><p style="font-size:12px">精华提炼中</p></div>
+  </div>
+</div>
+
+</div></body>

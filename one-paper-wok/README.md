@@ -6,7 +6,9 @@
 
 **图文使用说明书（配当前 APK）：** [docs/使用说明书.md](docs/使用说明书.md) · 浏览版 [docs/manual/index.html](docs/manual/index.html)
 
-**产品预告片（MP4，约 49 秒）：** [docs/manual/一纸读书煲-产品预告.mp4](docs/manual/一纸读书煲-产品预告.mp4)
+**产品预告片（MP4，约 55 秒，1080p）：** [docs/manual/一纸读书煲-产品预告.mp4](docs/manual/一纸读书煲-产品预告.mp4)
+
+配乐：Kevin MacLeod《Crypto》《Light Awash》（incompetech.com，CC BY 3.0）。片中部分界面为宣传渲染，含尚未上线的「一纸搭子」「一纸食堂」。
 
 ## 在安卓手机上安装使用
 
