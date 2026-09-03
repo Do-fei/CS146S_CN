@@ -53,7 +53,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       final data = await ref.read(apiClientProvider).health();
       setState(() => _health = '已连通 · OCR ${data['providers']?['ocr']} · 邮件 ${data['providers']?['email']}');
     } catch (e) {
-      setState(() => _error = '连不上服务器：${ref.read(apiClientProvider).prettyError(e)}\n请确认电脑已启动后端，并与手机在同一 Wi-Fi。');
+      setState(() => _error = '连不上服务器：${ref.read(apiClientProvider).prettyError(e)}\n局域网请确认电脑已启动后端且与手机同一 Wi-Fi；云端请填 https 地址。');
     } finally {
       setState(() => _busy = false);
     }
@@ -112,8 +112,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               keyboardType: TextInputType.url,
               decoration: const InputDecoration(
                 labelText: '服务器地址',
-                hintText: 'http://192.168.1.8:8000',
-                helperText: '填电脑的局域网 IP，不要填 127.0.0.1',
+                hintText: 'https://xxx.up.railway.app',
+                helperText: 'Railway 填 https 公网地址；本地调试填电脑局域网 IP，不要填 127.0.0.1',
               ),
             ),
             const SizedBox(height: 8),
@@ -126,7 +126,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             TextField(
               controller: _email,
               keyboardType: TextInputType.emailAddress,
-              decoration: const InputDecoration(labelText: '邮箱', hintText: '任意邮箱即可（当前为本地验证码）'),
+              decoration: const InputDecoration(
+                labelText: '邮箱',
+                hintText: '任意邮箱即可',
+                helperText: '未配置 SMTP 时，验证码会直接显示在本页',
+              ),
             ),
             if (_sent) ...[
               const SizedBox(height: 16),

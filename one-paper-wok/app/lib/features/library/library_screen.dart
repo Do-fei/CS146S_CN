@@ -41,7 +41,10 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
         content: TextField(
           controller: controller,
           keyboardType: TextInputType.url,
-          decoration: const InputDecoration(hintText: 'http://192.168.1.8:8000'),
+          decoration: const InputDecoration(
+            hintText: 'https://xxx.up.railway.app',
+            helperText: '云端填 https；本地填局域网 IP',
+          ),
         ),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('取消')),

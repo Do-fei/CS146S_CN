@@ -48,5 +48,13 @@ void main() {
   test('normalizeApiBaseUrl adds scheme and strips trailing slash', () {
     expect(normalizeApiBaseUrl('192.168.1.8:8000'), 'http://192.168.1.8:8000');
     expect(normalizeApiBaseUrl('http://10.0.0.2:8000/'), 'http://10.0.0.2:8000');
+    expect(
+      normalizeApiBaseUrl('one-paper-wok-production.up.railway.app/'),
+      'https://one-paper-wok-production.up.railway.app',
+    );
+    expect(
+      normalizeApiBaseUrl('https://one-paper-wok-production.up.railway.app'),
+      'https://one-paper-wok-production.up.railway.app',
+    );
   });
 }

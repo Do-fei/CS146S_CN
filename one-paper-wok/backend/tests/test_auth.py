@@ -3,6 +3,7 @@ def test_health(client):
     assert resp.status_code == 200
     body = resp.json()
     assert body["ok"] is True
+    assert body["hosted"] is False
     assert body["providers"]["ocr"] == "mock"
     assert body["providers"]["email"] == "mock"
 

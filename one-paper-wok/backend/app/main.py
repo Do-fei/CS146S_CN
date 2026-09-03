@@ -3,7 +3,7 @@ import logging
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from .config import get_settings
+from .config import get_settings, require_secure_jwt_if_hosted
 from .db import get_engine
 from .models import Base
 from .routers import annotations, auth, books, jobs, sync
@@ -25,6 +25,7 @@ app.add_middleware(
 
 @app.on_event("startup")
 def startup_event() -> None:
+    require_secure_jwt_if_hosted()
     ensure_dirs()
     Base.metadata.create_all(bind=get_engine())
     logging.getLogger("one_paper_wok").info(
@@ -44,6 +45,7 @@ def health() -> dict:
             "llm": settings.resolved_llm_provider(),
             "email": settings.resolved_email_provider(),
         },
+        "hosted": settings.hosted_on_railway(),
     }
 
 

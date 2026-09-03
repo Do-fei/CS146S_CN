@@ -9,13 +9,25 @@ class AppConfig {
   static const urlPrefsKey = 'api_base_url';
 }
 
+bool _isPrivateOrLocalHost(String host) {
+  if (host == 'localhost' || host == '::1' || host.endsWith('.local')) {
+    return true;
+  }
+  if (host.startsWith('127.') || host.startsWith('10.') || host.startsWith('192.168.')) {
+    return true;
+  }
+  final match = RegExp(r'^172\.(1[6-9]|2\d|3[0-1])\.').firstMatch(host);
+  return match != null;
+}
+
 String normalizeApiBaseUrl(String raw) {
   var url = raw.trim();
   if (url.endsWith('/')) {
     url = url.substring(0, url.length - 1);
   }
   if (!url.startsWith('http://') && !url.startsWith('https://')) {
-    url = 'http://$url';
+    final host = url.split('/').first.split(':').first;
+    url = '${_isPrivateOrLocalHost(host) ? 'http' : 'https'}://$url';
   }
   return url;
 }
