@@ -95,6 +95,24 @@
       font-size: 12px;
       font-family: "Noto Sans SC", sans-serif;
     }
+    .trailer-wrap {
+      margin: 8px 0 28px;
+      border-radius: 20px;
+      overflow: hidden;
+      background: #1a120e;
+      box-shadow: 0 22px 50px rgba(80, 40, 20, .18);
+    }
+    .trailer-wrap video {
+      display: block;
+      width: 100%;
+      max-height: 520px;
+      background: #1a120e;
+    }
+    .trailer-caption {
+      color: var(--muted);
+      font-size: 13px;
+      margin: 8px 0 0;
+    }
   </style>
 </head>
 <body>
@@ -106,6 +124,14 @@
   <h1>一纸读书煲</h1>
   <p class="sub">使用说明书 · 一个有趣的精神庇护所</p>
   <p>把纸书扫进锅里，慢炖成可搜索的电子书和「一纸项目」，再把手写批注回锅加料。账号跟着你走，换手机登录即可同步。</p>
+
+  <h2>产品预告</h2>
+  <div class="trailer-wrap">
+    <video controls playsinline preload="metadata" poster="images/cover.png">
+      <source src="一纸读书煲-产品预告.mp4" type="video/mp4">
+    </video>
+  </div>
+  <p class="trailer-caption sans">约 49 秒 · 1080p · 从打开界面到烹制一本书</p>
 
   <h2>目录</h2>
   <ol class="toc sans">
