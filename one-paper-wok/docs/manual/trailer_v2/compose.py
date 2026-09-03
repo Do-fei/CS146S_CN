@@ -21,7 +21,7 @@ FRAMES = BUILD / "frames"
 FRAMES.mkdir(parents=True, exist_ok=True)
 FONT = Path("/tmp/trailer2/NotoSansSC.ttf")
 OUT = MANUAL / "一纸读书煲-产品预告.mp4"
-ART = Path("/opt/cursor/artifacts/one_paper_wok_apple_trailer.mp4")
+ART = Path("/opt/cursor/artifacts/one_paper_wok_claypot_trailer.mp4")
 
 W, H, FPS = 1920, 1080, 30
 ORANGE = (232, 115, 74)
@@ -313,33 +313,32 @@ def main() -> None:
         ("note", 6.6),
         ("end", 7.2),
     ]
-    starts = []
-    acc = 0.0
-    for name, dur in shots:
-        starts.append(acc)
-        acc += dur
-    total = acc
-    fade = 0.55
-    print("duration", total)
+    CROSS = 1.05
+    starts = [0.0]
+    for i in range(1, len(shots)):
+        starts.append(starts[-1] + shots[i - 1][1] - CROSS)
+    total = starts[-1] + shots[-1][1]
+    print("duration", total, "starts", [round(s, 2) for s in starts])
     vo_path = BUILD / "vo.wav"
     music_path = BUILD / "music.wav"
     aac = BUILD / "mix.m4a"
     cues = [
         (1.55, "书，不该只被合上。"),
-        (8.35, "把它，放进锅里。"),
-        (16.2, "文字，会醒来。"),
-        (24.8, "一页，看懂一整本。"),
-        (35.4, "对照，再问一句。"),
-        (43.2, "一纸读书煲。"),
-        (47.6, "把阅读，重新煮成生活。"),
+        (6.55, "把它，放入煲中。"),
+        (12.40, "文字，会醒来。"),
+        (23.80, "一页，看懂一整本。"),
+        (29.60, "对照，再问一句。"),
+        (41.30, "一纸读书煲。"),
+        (44.60, "将阅读，重新烹成生活。"),
     ]
     print("synth vo")
-    if not vo_path.exists():
-        make_vo(cues, total, vo_path)
+    for stale in (vo_path, aac, BUILD / "vo_raw.wav"):
+        if stale.exists():
+            stale.unlink()
+    make_vo(cues, total, vo_path)
     print("mix music")
-    if not aac.exists():
-        make_music(total, music_path)
-        mix_audio(vo_path, music_path, total, aac)
+    make_music(total, music_path)
+    mix_audio(vo_path, music_path, total, aac)
 
     plates = {p.stem: cover(load_rgb(p), (W, H)) for p in PLATES.glob("plate_*.png")}
     phones = {
@@ -355,13 +354,13 @@ def main() -> None:
 
     titles = {
         "open": text_block([("书，不该只被合上。", 64, 280)]),
-        "home": text_block([("把它，放进锅里。", 64, 280), ("从一口空锅开始。", 28, 350)]),
-        "scan": text_block([("文字，会醒来。", 64, 280), ("对准纸面。即刻入锅。", 28, 350)]),
-        "cook": text_block([("AI 在慢炖。", 64, 280), ("OCR  ·  章节  ·  一纸精华", 26, 350)]),
+        "home": text_block([("把它，放入煲中。", 64, 280), ("自一只空煲开始。", 28, 350)]),
+        "scan": text_block([("文字，会醒来。", 64, 280), ("对准纸面。即刻入煲。", 28, 350)]),
+        "cook": text_block([("AI 文火烹制。", 64, 280), ("OCR  ·  章节  ·  一纸精华", 26, 350)]),
         "paper": text_block([("一页，看懂一整本。", 64, 280)]),
         "read": text_block([("对照。搜索。再问一句。", 56, 280)]),
-        "note": text_block([("你的批注，继续炖。", 60, 280)]),
-        "end": text_block([("一纸读书煲", 78, 250), ("把阅读，重新煮成生活。", 32, 330)]),
+        "note": text_block([("你的批注，继续烹制。", 60, 280)]),
+        "end": text_block([("一纸读书煲", 78, 250), ("将阅读，重新烹成生活。", 32, 330)]),
     }
 
     # particle seeds
@@ -373,12 +372,16 @@ def main() -> None:
     pvy = rng.uniform(-240, -40, n_p)
     psz = rng.uniform(1.4, 4.2, n_p)
 
-    def shot_local(t: float) -> tuple[str, float, float]:
+    def active_shots(t: float) -> list[tuple[str, float, float]]:
+        out = []
         for i, (name, dur) in enumerate(shots):
             s = starts[i]
-            if t < s + dur or i == len(shots) - 1:
-                return name, max(0.0, t - s), dur
-        return shots[-1][0], 0.0, shots[-1][1]
+            if s - 1e-6 <= t < s + dur:
+                out.append((name, t - s, dur))
+        if not out:
+            name, dur = shots[-1]
+            out.append((name, dur - 0.001, dur))
+        return out
 
     def draw_particles(base: Image.Image, t: float) -> Image.Image:
         im = base.convert("RGBA")
@@ -396,11 +399,11 @@ def main() -> None:
 
     def compose_shot(name: str, lt: float, dur: float) -> Image.Image:
         u = lt / max(dur, 0.001)
-        title_op = ease_in_out(min(1, lt / 0.7)) * (1 if u < 0.82 else ease_in_out((1 - u) / 0.18))
+        title_op = ease_in_out(min(1, lt / 0.85)) * (1 if u < 0.70 else ease_in_out(max(0.0, (1 - u) / 0.30)))
         phone_in = ease_out(min(1, lt / 0.95))
 
         if name == "open":
-            bg = ken(plates["plate_book_void"], u, 1.02, 1.10)
+            bg = ken(plates["plate_claypot_book"], u, 1.02, 1.10)
             # radial bloom
             bloom = Image.new("RGB", (W, H), (0, 0, 0))
             bd = ImageDraw.Draw(bloom)
@@ -411,7 +414,7 @@ def main() -> None:
             bg = paste(bg, titles["open"], (100, 430), title_op)
 
         elif name == "home":
-            bg = ken(plates["plate_table_still"], u, 1.0, 1.07, panx=0.08)
+            bg = ken(plates["plate_claypot_table"], u, 1.0, 1.07, panx=0.08)
             ph = phones["home"]
             x = int(lerp(W + 40, 1220, phone_in))
             y = 128
@@ -431,11 +434,11 @@ def main() -> None:
             bg = paste(bg, titles["scan"], (88, 340), title_op)
 
         elif name == "cook":
-            bg = ken(plates["plate_wok_steam"], u, 1.0, 1.08)
+            bg = ken(plates["plate_claypot_steam"], u, 1.0, 1.08)
             # orbiting glyphs
             overlay = Image.new("RGBA", (W, H), (0, 0, 0, 0))
             od = ImageDraw.Draw(overlay)
-            glyphs = list("OCR章节精华文字醒来慢炖")
+            glyphs = list("OCR章节精华文字醒来烹制")
             f = font(22, 350)
             for i, ch in enumerate(glyphs):
                 ang = lt * 0.85 + i * (math.tau / len(glyphs))
@@ -476,7 +479,7 @@ def main() -> None:
             bg = paste(bg, titles["note"], (88, 360), title_op)
 
         else:  # end
-            bg = ken(plates["plate_book_void"], u, 1.06, 1.12)
+            bg = ken(plates["plate_claypot_void"], u, 1.06, 1.12)
             bg = ImageEnhance.Brightness(bg).enhance(lerp(0.7, 0.35, u))
             word = titles["end"]
             bg = paste(bg, word, (100, 390), title_op)
@@ -485,27 +488,28 @@ def main() -> None:
 
         # light sweep
         sx = int(lerp(-240, W + 40, (lt / 3.6) % 1.0))
-        bg = paste(bg, sweep, (sx, 0), 0.55)
+        bg = paste(bg, sweep, (sx, 0), 0.32)
         return bg.convert("RGB")
 
     nframes = int(total * FPS)
     print("frames", nframes)
-    prev_name = None
-    # crossfade buffer: keep last frames of previous shot? easier: blend with black at edges
     for i in range(nframes):
-        t = i / FPS
-        name, lt, dur = shot_local(t)
-        frame = compose_shot(name, lt, dur)
-        # fade through black at shot edges
-        edge = min(lt, dur - lt)
-        if edge < fade and not (name == "open" and lt < fade):
-            k = ease_in_out(edge / fade)
-            black = Image.new("RGB", (W, H), (0, 0, 0))
-            frame = Image.blend(black, frame, k)
-        if name == "open" and lt < 1.1:
-            frame = Image.blend(Image.new("RGB", (W, H), (0, 0, 0)), frame, ease_in_out(lt / 1.1))
-        if name == "end" and dur - lt < 1.4:
-            frame = Image.blend(Image.new("RGB", (W, H), (0, 0, 0)), frame, ease_in_out((dur - lt) / 1.4))
+        t = min(total - 1e-4, i / FPS)
+        active = active_shots(t)
+        if len(active) == 1:
+            name, lt, dur = active[0]
+            frame = compose_shot(name, lt, dur)
+        else:
+            (n0, lt0, d0), (n1, lt1, d1) = active[0], active[1]
+            a = compose_shot(n0, lt0, d0)
+            b = compose_shot(n1, lt1, d1)
+            k = ease_in_out(min(1.0, lt1 / CROSS))
+            frame = Image.blend(a, b, k)
+            name = f"{n0}+{n1}"
+        if t < 1.0:
+            frame = Image.blend(Image.new("RGB", (W, H), (0, 0, 0)), frame, ease_in_out(t / 1.0))
+        if total - t < 1.6:
+            frame = Image.blend(Image.new("RGB", (W, H), (0, 0, 0)), frame, ease_in_out((total - t) / 1.6))
         frame = grade(frame, vig, grain_loop[i % len(grain_loop)], t)
         frame.save(FRAMES / f"{i:05d}.jpg", quality=90, optimize=False, subsampling=1)
         if i % 60 == 0:
@@ -519,7 +523,8 @@ def main() -> None:
     ])
     run([
         "ffmpeg", "-y", "-i", str(pic), "-i", str(aac),
-        "-c:v", "copy", "-c:a", "aac", "-b:a", "192k", "-shortest",
+        "-c:v", "copy", "-filter:a", "volume=1.3,alimiter=limit=0.94",
+        "-c:a", "aac", "-b:a", "192k", "-shortest",
         "-movflags", "+faststart", str(OUT),
     ])
     subprocess.run(["cp", str(OUT), str(ART)], check=True)

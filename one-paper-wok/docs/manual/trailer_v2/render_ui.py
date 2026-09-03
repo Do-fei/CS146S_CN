@@ -116,21 +116,21 @@ PAGES = {
     "home": page(
         """
 <div class="pad" style="padding-top:18px">
-  <div class="kicker">MY WOK</div>
-  <h1 style="margin-top:10px">今晚炖哪一本</h1>
-  <p style="margin:8px 0 18px">纸书进锅，慢火出纸。</p>
+  <div class="kicker">CLAYPOT</div>
+  <h1 style="margin-top:10px">今夜烹制哪一本</h1>
+  <p style="margin:8px 0 18px">纸书入煲，文火成纸。</p>
   <div class="row">
     <div class="cover" style="flex:1;background:linear-gradient(160deg,#8b3a24,#e8734a)">万历十五年</div>
     <div class="cover" style="flex:1;background:linear-gradient(160deg,#1c3d4a,#4a90d9)">百年孤独</div>
   </div>
   <div class="card" style="margin-top:12px">
-    <div class="tiny">SLOW COOKING</div>
+    <div class="tiny">SLOW FIRE</div>
     <h2 style="margin:6px 0 8px">静静的顿河 · 72%</h2>
     <div class="bar"><i></i></div>
     <p style="margin-top:8px;font-size:12px">OCR 完成 · 正在提炼一纸精华</p>
   </div>
 </div>
-<div class="nav"><span class="on">锅</span><span>食堂</span><span>搭子</span><span>我的</span></div>
+<div class="nav"><span class="on">煲</span><span>食堂</span><span>搭子</span><span>我的</span></div>
 """
     ),
     "scan": page(
@@ -158,9 +158,9 @@ PAGES = {
     "cook": page(
         """
 <div class="pad" style="padding-top:12px;text-align:center">
-  <div class="kicker">AI SLOW COOK</div>
-  <h1 style="margin:12px 0 6px">慢炖进行中</h1>
-  <p>模型在锅里工作，你可以离开。</p>
+  <div class="kicker">SLOW FIRE</div>
+  <h1 style="margin:12px 0 6px">文火烹制中</h1>
+  <p>模型在煲中烹饪，你可以离开。</p>
   <div style="margin:28px auto 8px;width:228px;height:228px;border-radius:50%;
     background:conic-gradient(#E8734A 0 250deg, rgba(255,255,255,.08) 0 360deg);
     display:grid;place-items:center">
@@ -190,7 +190,7 @@ PAGES = {
   </div>
   <div class="row" style="margin-top:10px">
     <div class="card" style="flex:1"><div class="tiny">01</div><p style="color:#fff;margin-top:8px;font-size:13px">海瑞不是例外，是对照。</p></div>
-    <div class="card" style="flex:1"><div class="tiny">02</div><p style="color:#fff;margin-top:8px;font-size:13px">张居正把效率煮过头了。</p></div>
+    <div class="card" style="flex:1"><div class="tiny">02</div><p style="color:#fff;margin-top:8px;font-size:13px">张居正把火候操之过急。</p></div>
   </div>
 </div>
 """
@@ -224,12 +224,12 @@ PAGES = {
   <p style="margin-bottom:16px">围着这本书，慢慢问。</p>
   <div class="chat">
     <div class="bubble me">这一章为什么突然写海瑞？</div>
-    <div class="bubble ai">作者把他放进锅里当对照。不是要你崇拜清官，是让你看见制度本身煮不动的地方。</div>
+    <div class="bubble ai">作者把他放入煲中当对照。不是要你崇拜清官，是让你看见制度本身难以烹透的地方。</div>
     <div class="bubble me">那张居正呢？</div>
     <div class="bubble ai">效率很高，火也太旺。一纸里把他标成「火候」那一段。</div>
   </div>
 </div>
-<div class="nav"><span>锅</span><span>食堂</span><span class="on">搭子</span><span>我的</span></div>
+<div class="nav"><span>煲</span><span>食堂</span><span class="on">搭子</span><span>我的</span></div>
 """
     ),
     "canteen": page(
@@ -239,30 +239,30 @@ PAGES = {
   <h1 style="margin:8px 0 14px">一纸食堂</h1>
   <div class="feed">
     <div class="card">
-      <div class="tiny">今日热锅</div>
+      <div class="tiny">今日热煲</div>
       <h2 style="margin:6px 0 4px">百年孤独</h2>
-      <p>32 人正在同炖 · 一纸被加了 18 味批注</p>
+      <p>32 人正在同烹 · 一纸被加了 18 味批注</p>
     </div>
     <div class="card">
-      <div class="tiny">新出锅</div>
+      <div class="tiny">新出煲</div>
       <h2 style="margin:6px 0 4px">寂静的春天</h2>
       <p>有人把第 3 章收成一张「毒物年表」。</p>
     </div>
     <div class="card">
-      <div class="tiny">可回锅</div>
+      <div class="tiny">可回煲</div>
       <h2 style="margin:6px 0 4px">万历十五年</h2>
-      <p>把你的旁注，加进别人的锅底。</p>
+      <p>把你的旁注，加进别人的煲底。</p>
     </div>
   </div>
 </div>
-<div class="nav"><span>锅</span><span class="on">食堂</span><span>搭子</span><span>我的</span></div>
+<div class="nav"><span>煲</span><span class="on">食堂</span><span>搭子</span><span>我的</span></div>
 """
     ),
     "note": page(
         """
 <div class="pad" style="padding-top:8px">
-  <div class="kicker">RECOOK</div>
-  <h1 style="font-size:28px;margin:8px 0 14px">回锅加料</h1>
+  <div class="kicker">RETURN</div>
+  <h1 style="font-size:28px;margin:8px 0 14px">回煲加料</h1>
   <div class="card" style="height:210px;position:relative;overflow:hidden">
     <p style="color:#E8734A;font-size:18px;line-height:2.1;transform:rotate(-4deg);margin:18px 8px">
       制度 &nbsp;≠&nbsp;道德<br>裂缝在页边
