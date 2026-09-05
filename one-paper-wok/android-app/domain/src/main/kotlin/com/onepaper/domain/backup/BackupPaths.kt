@@ -18,9 +18,9 @@ object BackupPaths {
     fun normalize(relative: String): String = relative.replace('\\', '/').trim().trimStart('/')
 
     fun isSafe(relative: String): Boolean {
-        val n = normalize(relative)
-        if (n.isBlank() || n.contains("..") || n.startsWith("/")) return false
-        return n.startsWith(LIBRARY_PREFIX)
+        val slashed = relative.replace('\\', '/').trim()
+        if (slashed.isBlank() || slashed.contains("..") || slashed.startsWith("/")) return false
+        return normalize(relative).startsWith(LIBRARY_PREFIX)
     }
 
     fun collect(paths: Iterable<String?>): List<String> {
