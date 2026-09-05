@@ -1,0 +1,35 @@
+name: github-pages
+
+on:
+  push:
+    branches: [main, cursor/one-paper-wok-mvp-99ab]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Include trial APK on the site
+        run: |
+          mkdir -p docs/downloads
+          cp one-paper-wok/dist/onepaper-0.1.0-delivery-trial-debug.apk \
+            docs/downloads/onepaper-0.1.0-delivery-trial-debug.apk
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: docs
+      - id: deployment
+        uses: actions/deploy-pages@v4
