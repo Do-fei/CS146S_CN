@@ -13,7 +13,9 @@ data class ScopeBar(
     val claimsWholeBook: Boolean,
 ) {
     init {
-        require(!claimsWholeBook || importedChapterCount > 0)
+        require(!claimsWholeBook || importedChapterCount > 0 || importedPageCount > 0) {
+            "全书状态必须至少有一章或一页已导入范围"
+        }
     }
 }
 

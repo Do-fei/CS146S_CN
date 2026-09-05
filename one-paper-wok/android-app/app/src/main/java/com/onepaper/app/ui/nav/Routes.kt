@@ -11,7 +11,7 @@ object Routes {
     const val Task = "task/{jobId}"
     const val Project = "project/{projectId}"
     const val Recook = "recook/{proposalId}"
-    const val Companion = "companion/{bookId}"
+    const val Companion = "companion/{bookId}?quote={quote}"
     const val Note = "note/{noteId}"
     const val Export = "export/{projectId}"
     const val Backup = "backup"
@@ -24,7 +24,8 @@ object Routes {
     fun task(id: String) = "task/$id"
     fun project(id: String) = "project/$id"
     fun recook(id: String) = "recook/$id"
-    fun companion(id: String) = "companion/$id"
+    fun companion(id: String, quote: String = "") =
+        "companion/$id?quote=${android.net.Uri.encode(quote.take(400))}"
     fun note(id: String) = "note/$id"
     fun export(id: String) = "export/$id"
     fun handwriting(id: String) = "handwriting/$id"

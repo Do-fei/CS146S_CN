@@ -23,6 +23,9 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.ui.platform.LocalContext
+import com.onepaper.app.data.share.ExportShare
+import java.io.File
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -54,6 +57,7 @@ fun ProjectScreen(
     val project by vm.project.collectAsStateWithLifecycle()
     val sections by vm.sections.collectAsStateWithLifecycle()
     val proposalId by vm.proposalId.collectAsStateWithLifecycle()
+    LaunchedEffect(Unit) { vm.refresh() }
     Scaffold(topBar = {
         TopAppBar(title = { Text(project?.title ?: "一纸") }, navigationIcon = { TextButton(onClick = onBack) { Text("返回") } })
     }) { padding ->
@@ -148,7 +152,7 @@ fun CompanionScreen(
     val items by vm.messages.collectAsStateWithLifecycle()
     val usingDeepSeek by vm.usingDeepSeek.collectAsStateWithLifecycle()
     var draft by remember { mutableStateOf("") }
-    var quote by remember { mutableStateOf("") }
+    var quote by remember { mutableStateOf(vm.seedQuote) }
     Scaffold(topBar = { TopAppBar(title = { Text("AI 搭子") }, navigationIcon = { TextButton(onClick = onBack) { Text("返回") } }) }) { padding ->
         Column(Modifier.padding(padding).padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Banner(
@@ -223,11 +227,19 @@ fun HandwritingScreen(onBack: () -> Unit, vm: NoteViewModel = hiltViewModel()) {
 @Composable
 fun ExportScreen(onBack: () -> Unit, vm: BackupViewModel = hiltViewModel(), projectVm: ProjectViewModel = hiltViewModel()) {
     val message by vm.message.collectAsStateWithLifecycle()
+    val filePath by vm.filePath.collectAsStateWithLifecycle()
+    val context = LocalContext.current
     Scaffold(topBar = { TopAppBar(title = { Text("导出预览") }, navigationIcon = { TextButton(onClick = onBack) { Text("返回") } }) }) { padding ->
         Column(Modifier.padding(padding).padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Text("默认不含阅读器私人批注。可勾选范围后导出 Markdown。")
             Button(onClick = { vm.exportMarkdown(projectVm.projectId) }, modifier = Modifier.fillMaxWidth()) {
                 Text("导出 Markdown")
+            }
+            if (filePath != null) {
+                OutlinedButton(
+                    onClick = { ExportShare.sendFile(context, File(filePath!!), "text/markdown", "分享一纸") },
+                    modifier = Modifier.fillMaxWidth(),
+                ) { Text("系统分享 Markdown") }
             }
             message?.let { Banner(it) }
         }

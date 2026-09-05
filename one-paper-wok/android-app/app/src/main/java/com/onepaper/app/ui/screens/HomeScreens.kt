@@ -1,8 +1,5 @@
 package com.onepaper.app.ui.screens
 
-import android.graphics.Bitmap
-import android.graphics.pdf.PdfRenderer
-import android.os.ParcelFileDescriptor
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
@@ -77,6 +74,8 @@ import com.onepaper.app.ui.vm.ReaderViewModel
 import com.onepaper.app.ui.vm.SettingsViewModel
 import com.onepaper.app.ui.vm.ShelfViewModel
 import com.onepaper.domain.model.KnowledgeLayer
+import com.onepaper.app.data.share.ExportShare
+import com.onepaper.app.ui.vm.CaptureViewModel
 import java.io.File
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -396,6 +395,12 @@ fun ReaderScreen(
     val pdfPath by vm.pdfPath.collectAsStateWithLifecycle()
     val bookId by vm.bookId.collectAsStateWithLifecycle()
     val stale by vm.stale.collectAsStateWithLifecycle()
+    val pages by vm.pages.collectAsStateWithLifecycle()
+    val pageIndex by vm.pageIndex.collectAsStateWithLifecycle()
+    val chapterIndex by vm.chapterIndex.collectAsStateWithLifecycle()
+    val notice by vm.notice.collectAsStateWithLifecycle()
+    val currentChapter = chapters.getOrNull(chapterIndex)
+    val currentPage = pages.getOrNull(pageIndex)
     Scaffold(topBar = {
         TopAppBar(title = { Text("阅读") }, navigationIcon = { TextButton(onClick = onBack) { Text("返回") } })
     }) { padding ->
@@ -403,13 +408,34 @@ fun ReaderScreen(
             Text("字号（改排版不应改定位）")
             Slider(value = font, onValueChange = vm::setFont, valueRange = 14f..28f)
             if (stale) Banner("定位已过期，只标记 stale，不伪装成功。")
+            notice?.let { Banner(it) }
             if (kind == "PDF") {
                 Banner("PDF 为固定版式预览。文本选择/搜索走 OCR 层，不假装可重排。")
-                pdfPath?.let { PdfPreview(it) }
+                Text("第 ${pageIndex + 1} / ${pages.size.coerceAtLeast(1)} 页")
+                pdfPath?.let { PdfPreview(it, pageIndex) }
+                currentPage?.recognitionDraft?.takeIf { it.isNotBlank() }?.let {
+                    Text("识别稿：$it", style = MaterialTheme.typography.bodySmall)
+                }
+            } else if (kind == "IMAGES") {
+                Banner("扫描页按图像阅读。印刷 OCR 写识别稿，不当原文。")
+                Text("第 ${pageIndex + 1} / ${pages.size.coerceAtLeast(1)} 页")
+                currentPage?.imageRelPath?.let { ImagePreview(it) }
+                currentPage?.recognitionDraft?.takeIf { it.isNotBlank() }?.let {
+                    Text("识别稿：$it", style = MaterialTheme.typography.bodySmall)
+                }
             } else {
-                chapters.forEach { chapter ->
-                    Text(chapter.title, style = MaterialTheme.typography.titleMedium)
+                currentChapter?.let { chapter ->
+                    Text("${chapter.title} · ${chapterIndex + 1}/${chapters.size.coerceAtLeast(1)}", style = MaterialTheme.typography.titleMedium)
                     Text(chapter.plainText, fontSize = font.sp, modifier = Modifier.padding(vertical = 8.dp))
+                } ?: Text("这一版没有可抽出的文本。")
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                OutlinedButton(onClick = vm::prev, modifier = Modifier.weight(1f)) { Text("上一页") }
+                OutlinedButton(onClick = vm::next, modifier = Modifier.weight(1f)) { Text("下一页") }
+            }
+            if (kind == "PDF" || kind == "IMAGES") {
+                OutlinedButton(onClick = vm::ocrCurrentPage, modifier = Modifier.fillMaxWidth()) {
+                    Text("识别本页（印刷 OCR）")
                 }
             }
             OutlinedTextField(
@@ -430,33 +456,46 @@ fun ReaderScreen(
 }
 
 @Composable
-private fun PdfPreview(relativePath: String) {
+private fun PdfPreview(relativePath: String, pageIndex: Int) {
+    val context = LocalContext.current
+    val bitmap = remember(relativePath, pageIndex) {
+        com.onepaper.app.data.importing.PdfPages.renderBitmap(File(context.filesDir, relativePath), pageIndex)
+    }
+    if (bitmap != null) {
+        Image(
+            bitmap.asImageBitmap(),
+            contentDescription = "PDF 第 ${pageIndex + 1} 页",
+            modifier = Modifier.fillMaxWidth().height(420.dp),
+        )
+    } else {
+        Text("未能渲染这一页。")
+    }
+}
+
+@Composable
+private fun ImagePreview(relativePath: String) {
     val context = LocalContext.current
     val bitmap = remember(relativePath) {
         runCatching {
             val file = File(context.filesDir, relativePath)
             if (!file.exists()) return@runCatching null
-            val pfd = ParcelFileDescriptor.open(file, ParcelFileDescriptor.MODE_READ_ONLY)
-            val renderer = PdfRenderer(pfd)
-            val page = renderer.openPage(0)
-            val bmp = Bitmap.createBitmap(page.width, page.height, Bitmap.Config.ARGB_8888)
-            page.render(bmp, null, null, PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY)
-            page.close()
-            renderer.close()
-            pfd.close()
-            bmp
+            android.graphics.BitmapFactory.decodeFile(file.absolutePath)
         }.getOrNull()
     }
     if (bitmap != null) {
-        Image(bitmap.asImageBitmap(), contentDescription = "PDF 第 1 页", modifier = Modifier.fillMaxWidth().height(360.dp))
+        Image(bitmap.asImageBitmap(), contentDescription = "扫描页", modifier = Modifier.fillMaxWidth().height(360.dp))
     } else {
-        Text("未能渲染 PDF 首页。")
+        Text("未能打开图像页。")
     }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ImportScreen(onDone: () -> Unit, vm: ImportViewModel = hiltViewModel()) {
+fun ImportScreen(
+    onDone: () -> Unit,
+    onOpenBook: (String) -> Unit,
+    vm: ImportViewModel = hiltViewModel(),
+) {
     val last by vm.last.collectAsStateWithLifecycle()
     val excerpt by vm.excerpt.collectAsStateWithLifecycle()
     val picker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
@@ -465,6 +504,7 @@ fun ImportScreen(onDone: () -> Unit, vm: ImportViewModel = hiltViewModel()) {
     Scaffold(topBar = { TopAppBar(title = { Text("导入确认") }, navigationIcon = { TextButton(onClick = onDone) { Text("返回") } }) }) { padding ->
         Column(Modifier.padding(padding).padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Text("文件会复制到应用私有目录。加密 / DRM 会被拒绝，不会尝试绕过。")
+            Text("选择器给的 content URI 常常没有扩展名，会按 MIME / 文件头识别 EPUB、PDF、图片和文本。")
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text("按摘录而不是全书")
                 Spacer(Modifier.weight(1f))
@@ -473,12 +513,23 @@ fun ImportScreen(onDone: () -> Unit, vm: ImportViewModel = hiltViewModel()) {
             Button(onClick = { picker.launch(arrayOf("*/*")) }, modifier = Modifier.fillMaxWidth()) {
                 Text("选择文件")
             }
+            OutlinedButton(onClick = vm::importBundledEpub, modifier = Modifier.fillMaxWidth()) {
+                Text("导入随包说明书（EPUB）")
+            }
+            OutlinedButton(onClick = vm::importBundledPdf, modifier = Modifier.fillMaxWidth()) {
+                Text("导入随包样页（PDF）")
+            }
             last?.let { outcome ->
                 if (outcome.rejectedReason != null) {
                     Banner("未导入：${outcome.rejectedReason}")
                 } else {
                     Banner("已复制并建档。书与文件一对一，不按书名合并。")
-                    Button(onClick = onDone) { Text("完成") }
+                    Button(
+                        onClick = { onOpenBook(outcome.bookId) },
+                        enabled = outcome.bookId.isNotBlank(),
+                        modifier = Modifier.fillMaxWidth(),
+                    ) { Text("打开这本书") }
+                    TextButton(onClick = onDone) { Text("返回书架") }
                 }
             }
         }
@@ -487,17 +538,36 @@ fun ImportScreen(onDone: () -> Unit, vm: ImportViewModel = hiltViewModel()) {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun CaptureScreen(onDone: () -> Unit, onImport: () -> Unit) {
-    val picker = rememberLauncherForActivityResult(ActivityResultContracts.GetMultipleContents()) { }
+fun CaptureScreen(
+    onDone: () -> Unit,
+    onImport: () -> Unit,
+    onOpenBook: (String) -> Unit,
+    vm: CaptureViewModel = hiltViewModel(),
+) {
+    val last by vm.last.collectAsStateWithLifecycle()
+    val picker = rememberLauncherForActivityResult(ActivityResultContracts.GetMultipleContents()) { uris ->
+        if (uris.isNotEmpty()) vm.importImages(uris)
+    }
     Scaffold(topBar = { TopAppBar(title = { Text("自炊台") }, navigationIcon = { TextButton(onClick = onDone) { Text("返回") } }) }) { padding ->
         Column(Modifier.padding(padding).padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            Banner("拒相机时仍可用相册。存储满时停止连拍。自动翻页检测未承诺。")
+            Banner("拒相机时仍可用相册。选中的页会复制进私有目录并建成摘录书。自动翻页检测未承诺。")
             Button(onClick = { picker.launch("image/*") }, modifier = Modifier.fillMaxWidth()) {
                 Icon(Icons.Outlined.PhotoLibrary, null)
                 Text(" 从相册选页")
             }
             OutlinedButton(onClick = onImport, modifier = Modifier.fillMaxWidth()) { Text("改为导入文件") }
-            Text("连拍、双页拆分、质量提示在相机权限可用后进入同一整理台。")
+            last?.let { outcome ->
+                if (outcome.rejectedReason != null) {
+                    Banner("未导入：${outcome.rejectedReason}")
+                } else {
+                    Banner("已建立自炊页档案。请到页面整理做印刷 OCR。")
+                    Button(
+                        onClick = { onOpenBook(outcome.bookId) },
+                        enabled = outcome.bookId.isNotBlank(),
+                        modifier = Modifier.fillMaxWidth(),
+                    ) { Text("打开这本自炊页") }
+                }
+            }
         }
     }
 }
@@ -572,11 +642,32 @@ fun SettingsScreen(onBack: () -> Unit, vm: SettingsViewModel = hiltViewModel()) 
 @Composable
 fun BackupScreen(onBack: () -> Unit, vm: BackupViewModel = hiltViewModel()) {
     val message by vm.message.collectAsStateWithLifecycle()
+    val filePath by vm.filePath.collectAsStateWithLifecycle()
     var restoreText by remember { mutableStateOf("") }
+    val context = LocalContext.current
+    val restorePicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri == null) return@rememberLauncherForActivityResult
+        runCatching {
+            context.contentResolver.openInputStream(uri)?.bufferedReader()?.use { it.readText() }
+        }.getOrNull()?.let { raw ->
+            restoreText = raw.take(8_000)
+            vm.restore(raw)
+        }
+    }
     Scaffold(topBar = { TopAppBar(title = { Text("备份恢复") }, navigationIcon = { TextButton(onClick = onBack) { Text("返回") } }) }) { padding ->
         Column(Modifier.padding(padding).padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            Text("无账号可用。备份不含 token。")
+            Text("无账号可用。备份不含 DeepSeek Key / token。")
             Button(onClick = vm::exportLibrary, modifier = Modifier.fillMaxWidth()) { Text("导出完整备份") }
+            if (filePath != null) {
+                OutlinedButton(
+                    onClick = { ExportShare.sendFile(context, File(filePath!!), "application/json", "分享备份") },
+                    modifier = Modifier.fillMaxWidth(),
+                ) { Text("系统分享备份文件") }
+            }
+            OutlinedButton(
+                onClick = { restorePicker.launch(arrayOf("application/json", "text/*", "*/*")) },
+                modifier = Modifier.fillMaxWidth(),
+            ) { Text("从文件恢复") }
             OutlinedTextField(
                 value = restoreText,
                 onValueChange = { restoreText = it },

@@ -9,9 +9,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navArgument
 import com.onepaper.app.ui.screens.BackupScreen
 import com.onepaper.app.ui.screens.BookScreen
 import com.onepaper.app.ui.screens.CaptureScreen
@@ -48,11 +50,7 @@ fun OnePaperRoot(modifier: Modifier = Modifier) {
             OnboardingScreen(
                 onImport = { nav.navigate(Routes.Import) },
                 onCapture = { nav.navigate(Routes.Capture) },
-                onLater = {
-                    nav.navigate(Routes.Home) {
-                        popUpTo(Routes.Onboarding) { inclusive = true }
-                    }
-                },
+                onLater = { nav.goHome() },
             )
         }
         composable(Routes.Home) {
@@ -78,13 +76,22 @@ fun OnePaperRoot(modifier: Modifier = Modifier) {
         }
         composable(Routes.Reader) {
             ReaderScreen(
-                onCompanion = { bookId, _ -> nav.navigate(Routes.companion(bookId)) },
+                onCompanion = { bookId, quote -> nav.navigate(Routes.companion(bookId, quote)) },
                 onBack = { nav.popBackStack() },
             )
         }
-        composable(Routes.Import) { ImportScreen(onDone = { nav.popBackStack() }) }
+        composable(Routes.Import) {
+            ImportScreen(
+                onDone = { nav.popBackStack() },
+                onOpenBook = { nav.openImportedBook(it) },
+            )
+        }
         composable(Routes.Capture) {
-            CaptureScreen(onDone = { nav.popBackStack() }, onImport = { nav.navigate(Routes.Import) })
+            CaptureScreen(
+                onDone = { nav.popBackStack() },
+                onImport = { nav.navigate(Routes.Import) },
+                onOpenBook = { nav.openImportedBook(it) },
+            )
         }
         composable(Routes.Pages) { PagesScreen(onBack = { nav.popBackStack() }) }
         composable(Routes.Task) { TaskScreen(onBack = { nav.popBackStack() }) }
@@ -96,7 +103,13 @@ fun OnePaperRoot(modifier: Modifier = Modifier) {
             )
         }
         composable(Routes.Recook) { RecookScreen(onBack = { nav.popBackStack() }) }
-        composable(Routes.Companion) { CompanionScreen(onBack = { nav.popBackStack() }) }
+        composable(
+            route = Routes.Companion,
+            arguments = listOf(
+                navArgument("bookId") { type = NavType.StringType },
+                navArgument("quote") { type = NavType.StringType; defaultValue = "" },
+            ),
+        ) { CompanionScreen(onBack = { nav.popBackStack() }) }
         composable(Routes.Note) {
             NoteScreen(
                 onBack = { nav.popBackStack() },
@@ -108,4 +121,17 @@ fun OnePaperRoot(modifier: Modifier = Modifier) {
         composable(Routes.Settings) { SettingsScreen(onBack = { nav.popBackStack() }) }
         composable(Routes.Handwriting) { HandwritingScreen(onBack = { nav.popBackStack() }) }
     }
+}
+
+private fun androidx.navigation.NavHostController.goHome() {
+    navigate(Routes.Home) {
+        popUpTo(graph.startDestinationId) { inclusive = true }
+    }
+}
+
+private fun androidx.navigation.NavHostController.openImportedBook(bookId: String) {
+    navigate(Routes.Home) {
+        popUpTo(graph.startDestinationId) { inclusive = true }
+    }
+    navigate(Routes.book(bookId))
 }

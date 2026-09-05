@@ -31,4 +31,26 @@ class FakeAiProviderTest {
         assertTrue(answer.insufficientEvidence)
         assertTrue(answer.text.contains("部分"))
     }
+
+    @Test
+    fun wholeBookPdfScopeAllowsPagesWithoutChapters() = runBlocking {
+        val scope = ScopeBar(importedChapterCount = 0, importedPageCount = 43, claimsWholeBook = true)
+        val answer = provider.answer(
+            CompanionRequest(
+                bookId = "pdf",
+                question = "这一页在讲什么？",
+                scope = scope,
+                evidence = listOf(
+                    Citation(
+                        sourceDocumentId = "ed-pdf",
+                        contentVersion = "v1",
+                        locator = ContentLocator.PdfPageRect(0, 0.0, 0.0, 1.0, 1.0, TextQuote("慢烹")),
+                        quote = "慢烹",
+                    ),
+                ),
+            ),
+        )
+        assertTrue(!answer.refusedWholeBookConclusion)
+        assertTrue(answer.text.contains("慢烹"))
+    }
 }

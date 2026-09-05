@@ -1,10 +1,13 @@
 package com.onepaper.app.data.repo
 
 import android.content.Context
+import android.content.Intent
 import android.net.Uri
 import com.onepaper.app.data.files.PrivateStore
 import com.onepaper.app.data.importing.EpubTextExtractor
+import com.onepaper.app.data.importing.ImportType
 import com.onepaper.app.data.importing.PdfGuard
+import com.onepaper.app.data.importing.PdfPages
 import com.onepaper.app.data.local.AnnotationDao
 import com.onepaper.app.data.local.AnnotationEntity
 import com.onepaper.app.data.local.BookDao
@@ -89,22 +92,30 @@ class LibraryRepository @Inject constructor(
         state = machine.start(state)
         persistJob(state, null, "import")
 
-        val name = displayName.ifBlank { "source.bin" }
+        persistReadPermission(uri)
+        val incoming = ImportType.resolve(context, uri, displayName)
         val dest = context.contentResolver.openInputStream(uri)?.use { input ->
-            store.copyIncoming(editionId, name, input)
+            store.copyIncoming(editionId, incoming.displayName, input)
         } ?: return ImportOutcome("", editionId, "无法读取文件")
 
         state = state.copy(durableFilesPresent = true)
         persistJob(state, null, "import")
 
-        val lower = name.lowercase()
-        val outcome = when {
-            lower.endsWith(".epub") -> ingestEpub(dest, name, coverage, markExcerpt, editionId)
-            lower.endsWith(".pdf") -> ingestPdf(dest, name, coverage, markExcerpt, editionId)
-            lower.endsWith(".txt") || lower.endsWith(".md") -> ingestTextFile(dest, name, coverage, editionId)
-            lower.endsWith(".png") || lower.endsWith(".jpg") || lower.endsWith(".jpeg") || lower.endsWith(".webp") ->
-                ingestImage(dest, name, editionId)
-            else -> ImportOutcome("", editionId, "暂不支持的类型：$name")
+        val kind = when {
+            incoming.kind == SourceKind.EPUB -> SourceKind.EPUB
+            incoming.kind == SourceKind.PDF -> SourceKind.PDF
+            incoming.kind == SourceKind.IMAGES -> SourceKind.IMAGES
+            incoming.displayName.endsWith(".epub", true) -> SourceKind.EPUB
+            incoming.displayName.endsWith(".zip", true) && ImportType.sniffZipIsEpub(dest) -> SourceKind.EPUB
+            dest.name.endsWith(".zip", true) && ImportType.sniffZipIsEpub(dest) -> SourceKind.EPUB
+            else -> incoming.kind
+        }
+        val name = incoming.displayName
+        val outcome = when (kind) {
+            SourceKind.EPUB -> ingestEpub(dest, name, coverage, markExcerpt, editionId)
+            SourceKind.PDF -> ingestPdf(dest, name, coverage, markExcerpt, editionId)
+            SourceKind.PLAIN_TEXT -> ingestTextFile(dest, name, coverage, editionId)
+            SourceKind.IMAGES -> ingestImage(dest, name, editionId)
         }
         if (outcome.rejectedReason != null) {
             persistJob(machine.fail(state, retryable = false, message = outcome.rejectedReason), outcome.bookId, "import")
@@ -199,7 +210,11 @@ class LibraryRepository @Inject constructor(
             return ImportOutcome("", editionId, "EPUB 里没有可抽出的文本")
         }
         val bookId = UUID.randomUUID().toString()
-        val title = extracted.first().title.ifBlank { name }
+        val title = if (name.contains("onepaper-guide")) {
+            "一纸书煲使用说明书"
+        } else {
+            extracted.first().title.ifBlank { prettyTitle(name, ".epub") }
+        }
         persistImported(
             bookId = bookId,
             editionId = editionId,
@@ -236,11 +251,12 @@ class LibraryRepository @Inject constructor(
         if (PdfGuard.looksEncrypted(file)) {
             return ImportOutcome("", editionId, "拒绝绕过加密 PDF")
         }
+        val pageCount = PdfPages.count(file)
         val bookId = UUID.randomUUID().toString()
         persistImported(
             bookId = bookId,
             editionId = editionId,
-            title = name.removeSuffix(".pdf"),
+            title = prettyTitle(name, ".pdf"),
             author = "",
             coverage = if (markExcerpt) Coverage.EXCERPT else coverage,
             kind = SourceKind.PDF,
@@ -248,7 +264,75 @@ class LibraryRepository @Inject constructor(
             fileRel = store.relative(file),
             checksum = store.sha256(file),
             chapterList = emptyList(),
-            pageCount = 0,
+            pageCount = pageCount,
+        )
+        if (pageCount > 0) {
+            pages.upsertAll(
+                (0 until pageCount).map { idx ->
+                    PageEntity(
+                        id = UUID.randomUUID().toString(),
+                        editionId = editionId,
+                        index = idx,
+                        imageRelPath = store.relative(file),
+                        ocrText = null,
+                        recognitionDraft = null,
+                    )
+                },
+            )
+        }
+        return ImportOutcome(bookId, editionId)
+    }
+
+    suspend fun importBundledEpub(): ImportOutcome {
+        val editionId = UUID.randomUUID().toString()
+        val dest = openAsset("samples/onepaper-guide.epub", editionId, "onepaper-guide.epub")
+            ?: return ImportOutcome("", editionId, "随包说明书缺失")
+        return ingestEpub(dest, "onepaper-guide.epub", Coverage.WHOLE_BOOK, markExcerpt = false, editionId)
+    }
+
+    suspend fun importBundledPdf(): ImportOutcome {
+        val editionId = UUID.randomUUID().toString()
+        val dest = openAsset("samples/onepaper-sample.pdf", editionId, "onepaper-sample.pdf")
+            ?: return ImportOutcome("", editionId, "随包样页缺失")
+        return ingestPdf(dest, "onepaper-sample.pdf", Coverage.WHOLE_BOOK, markExcerpt = false, editionId)
+    }
+
+    suspend fun importImages(uris: List<Uri>): ImportOutcome {
+        if (uris.isEmpty()) return ImportOutcome("", "", "没有选择图片")
+        val editionId = UUID.randomUUID().toString()
+        val dests = uris.mapIndexedNotNull { idx, uri ->
+            persistReadPermission(uri)
+            val incoming = ImportType.resolve(context, uri, "page-${idx + 1}.jpg")
+            context.contentResolver.openInputStream(uri)?.use { input ->
+                store.copyIncoming(editionId, incoming.displayName.ifBlank { "page-${idx + 1}.jpg" }, input)
+            }
+        }
+        if (dests.isEmpty()) return ImportOutcome("", editionId, "无法读取图片")
+        val bookId = UUID.randomUUID().toString()
+        persistImported(
+            bookId = bookId,
+            editionId = editionId,
+            title = "自炊页 · ${dests.size} 张",
+            author = "",
+            coverage = Coverage.EXCERPT,
+            kind = SourceKind.IMAGES,
+            originalName = dests.first().name,
+            fileRel = store.relative(dests.first()),
+            checksum = store.sha256(dests.first()),
+            chapterList = emptyList(),
+            pageCount = dests.size,
+        )
+        pages.upsertAll(
+            dests.mapIndexed { idx, file ->
+                PageEntity(
+                    id = UUID.randomUUID().toString(),
+                    editionId = editionId,
+                    index = idx,
+                    imageRelPath = store.relative(file),
+                    ocrText = null,
+                    recognitionDraft = null,
+                )
+            },
         )
         return ImportOutcome(bookId, editionId)
     }
@@ -332,7 +416,19 @@ class LibraryRepository @Inject constructor(
     }
 
     suspend fun addHighlight(bookId: String, editionId: String, href: String, quote: String, progression: Double) {
-        val locator = ContentLocator.Epub(href = href, progression = progression, quote = TextQuote(exact = quote))
+        persistAnnotation(bookId, editionId, ContentLocator.Epub(href, progression, TextQuote(exact = quote)), quote)
+    }
+
+    suspend fun addHighlightPdf(bookId: String, editionId: String, pageIndex: Int, quote: String) {
+        persistAnnotation(
+            bookId,
+            editionId,
+            ContentLocator.PdfPageRect(pageIndex, 0.0, 0.0, 1.0, 1.0, TextQuote(exact = quote)),
+            quote,
+        )
+    }
+
+    private suspend fun persistAnnotation(bookId: String, editionId: String, locator: ContentLocator, quote: String) {
         annotations.upsert(
             AnnotationEntity(
                 id = UUID.randomUUID().toString(),
@@ -380,6 +476,30 @@ class LibraryRepository @Inject constructor(
                 ),
             ),
         )
+    }
+
+    private fun persistReadPermission(uri: Uri) {
+        runCatching {
+            context.contentResolver.takePersistableUriPermission(
+                uri,
+                Intent.FLAG_GRANT_READ_URI_PERMISSION,
+            )
+        }
+    }
+
+    private fun openAsset(assetPath: String, editionId: String, name: String): java.io.File? {
+        return runCatching {
+            context.assets.open(assetPath).use { input -> store.copyIncoming(editionId, name, input) }
+        }.getOrNull()
+    }
+
+    private fun prettyTitle(name: String, suffix: String): String {
+        val trimmed = name.substringAfterLast('/').removeSuffix(suffix).ifBlank { name }
+        return when (trimmed) {
+            "onepaper-sample" -> "一纸书煲 · 随包样页"
+            "onepaper-guide" -> "一纸书煲使用说明书"
+            else -> trimmed
+        }
     }
 
     private suspend fun persistJob(state: JobState, bookId: String?, kind: String) {

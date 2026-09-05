@@ -42,20 +42,38 @@ class CompanionRepository @Inject constructor(
         val chapterCount = eds.sumOf { library.chaptersOf(it.id).size }
         val pageCount = eds.sumOf { it.pageCount }
         val book = library.book(bookId)
-        val whole = book?.coverage == Coverage.WHOLE_BOOK.name
-        val first = eds.firstOrNull()?.let { library.chaptersOf(it.id).firstOrNull() }
-        val quote = selectedQuote ?: first?.plainText?.trim()?.take(24).orEmpty()
+        val hasRange = chapterCount > 0 || pageCount > 0
+        val whole = book?.coverage == Coverage.WHOLE_BOOK.name && hasRange
+        val firstChapter = eds.firstOrNull()?.let { library.chaptersOf(it.id).firstOrNull() }
+        val firstPage = eds.firstOrNull()?.let { library.pagesOf(it.id).firstOrNull() }
+        val quote = selectedQuote?.trim().orEmpty().ifBlank {
+            firstChapter?.plainText?.trim()?.take(24)
+                ?: firstPage?.ocrText?.trim()?.take(24)
+                ?: firstPage?.recognitionDraft?.trim()?.take(24)
+                ?: ""
+        }
         val evidence = if (quote.isBlank()) {
             emptyList()
-        } else {
+        } else if (firstChapter != null) {
             listOf(
                 Citation(
-                    sourceDocumentId = first?.editionId ?: bookId,
-                    contentVersion = first?.contentVersion ?: "v1",
-                    locator = ContentLocator.Epub(first?.href ?: "unknown", 0.0, TextQuote(quote)),
+                    sourceDocumentId = firstChapter.editionId,
+                    contentVersion = firstChapter.contentVersion,
+                    locator = ContentLocator.Epub(firstChapter.href, 0.0, TextQuote(quote)),
                     quote = quote,
                 ),
             )
+        } else if (firstPage != null) {
+            listOf(
+                Citation(
+                    sourceDocumentId = firstPage.editionId,
+                    contentVersion = "v1",
+                    locator = ContentLocator.PdfPageRect(firstPage.index, 0.0, 0.0, 1.0, 1.0, TextQuote(quote)),
+                    quote = quote,
+                ),
+            )
+        } else {
+            emptyList()
         }
         val answer = ai.answer(
             CompanionRequest(

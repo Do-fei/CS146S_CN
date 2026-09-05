@@ -6,6 +6,7 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.onepaper.app.data.files.PrivateStore
+import com.onepaper.app.data.importing.PdfPages
 import com.onepaper.app.data.local.BookEntity
 import com.onepaper.app.data.local.ChapterEntity
 import com.onepaper.app.data.local.JobEntity
@@ -24,6 +25,7 @@ import com.onepaper.app.data.repo.LibraryRepository
 import com.onepaper.app.data.repo.NoteRepository
 import com.onepaper.app.data.repo.ProjectRepository
 import com.onepaper.domain.citation.ContentLocator
+import com.onepaper.domain.citation.LocatorCodec
 import com.onepaper.domain.citation.LocatorResolver
 import com.onepaper.domain.citation.EpubChapter
 import com.onepaper.domain.citation.EpubDocument
@@ -103,6 +105,8 @@ class BookViewModel @Inject constructor(
 class ReaderViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val library: LibraryRepository,
+    private val store: PrivateStore,
+    private val ocr: OcrEngine,
 ) : ViewModel() {
     val editionId: String = checkNotNull(savedStateHandle["editionId"])
     val chapters = MutableStateFlow<List<ChapterEntity>>(emptyList())
@@ -114,6 +118,9 @@ class ReaderViewModel @Inject constructor(
     val kind = MutableStateFlow("TEXT")
     val pdfPath = MutableStateFlow<String?>(null)
     val bookId = MutableStateFlow<String?>(null)
+    val pageIndex = MutableStateFlow(0)
+    val chapterIndex = MutableStateFlow(0)
+    val notice = MutableStateFlow<String?>(null)
 
     init {
         viewModelScope.launch {
@@ -123,6 +130,7 @@ class ReaderViewModel @Inject constructor(
             pdfPath.value = edition?.relativePath
             chapters.value = library.chaptersOf(editionId)
             pages.value = library.pagesOf(editionId)
+            restorePosition()
         }
     }
 
@@ -134,12 +142,44 @@ class ReaderViewModel @Inject constructor(
         selected.value = quote
     }
 
+    fun next() {
+        if (kind.value == "PDF" || kind.value == "IMAGES") {
+            pageIndex.value = (pageIndex.value + 1).coerceAtMost((pages.value.size - 1).coerceAtLeast(0))
+        } else {
+            chapterIndex.value = (chapterIndex.value + 1).coerceAtMost((chapters.value.size - 1).coerceAtLeast(0))
+        }
+        persistPosition()
+    }
+
+    fun prev() {
+        if (kind.value == "PDF" || kind.value == "IMAGES") {
+            pageIndex.value = (pageIndex.value - 1).coerceAtLeast(0)
+        } else {
+            chapterIndex.value = (chapterIndex.value - 1).coerceAtLeast(0)
+        }
+        persistPosition()
+    }
+
     fun highlight() {
-        val quote = selected.value
-        val chapter = chapters.value.firstOrNull { it.plainText.contains(quote) } ?: return
-        val book = bookId.value ?: return
-        val progression = chapter.plainText.indexOf(quote).toDouble() / chapter.plainText.length.coerceAtLeast(1)
+        val quote = selected.value.trim()
+        val book = bookId.value
+        if (quote.isBlank() || book == null) {
+            notice.value = "先粘贴或输入一段原文，再记笔记。"
+            return
+        }
         viewModelScope.launch {
+            if (kind.value == "PDF" || kind.value == "IMAGES") {
+                library.addHighlightPdf(book, editionId, pageIndex.value, quote)
+                notice.value = "已按第 ${pageIndex.value + 1} 页记下选区。"
+                persistPosition()
+                return@launch
+            }
+            val chapter = chapters.value.firstOrNull { it.plainText.contains(quote) }
+            if (chapter == null) {
+                notice.value = "选区不在当前抽出文本中，没有记上。"
+                return@launch
+            }
+            val progression = chapter.plainText.indexOf(quote).toDouble() / chapter.plainText.length.coerceAtLeast(1)
             library.addHighlight(book, editionId, chapter.href, quote, progression)
             val doc = EpubDocument(
                 chapter.contentVersion,
@@ -151,6 +191,65 @@ class ReaderViewModel @Inject constructor(
             )
             stale.value = found !is com.onepaper.domain.citation.ResolveResult.Found || found.stale
             jumpQuote.value = quote
+            notice.value = "已记下选区。"
+            persistPosition()
+        }
+    }
+
+    fun ocrCurrentPage() {
+        viewModelScope.launch {
+            val page = pages.value.getOrNull(pageIndex.value)
+            if (page == null) {
+                notice.value = "这一页还没有可识别的图像。"
+                return@launch
+            }
+            val bytes = pageBytes(page) ?: run {
+                notice.value = "无法渲染此页。"
+                return@launch
+            }
+            val result = ocr.recognize(bytes, OcrKind.PRINT)
+            library.updatePageOcr(page.copy(ocrText = result.fullText, recognitionDraft = result.fullText))
+            pages.value = library.pagesOf(editionId)
+            if (selected.value.isBlank() && result.fullText.isNotBlank()) {
+                selected.value = result.fullText.take(80)
+            }
+            notice.value = if (result.fullText.isBlank()) "没有识别到文字。" else "识别稿已写入本页，请校对。"
+        }
+    }
+
+    private fun pageBytes(page: PageEntity): ByteArray? {
+        val rel = page.imageRelPath ?: pdfPath.value ?: return null
+        val file = store.file(rel)
+        return if (kind.value == "PDF" || file.name.endsWith(".pdf", true)) {
+            PdfPages.pngBytes(file, page.index)
+        } else {
+            runCatching { file.readBytes() }.getOrNull()
+        }
+    }
+
+    private fun persistPosition() {
+        viewModelScope.launch {
+            val locator = if (kind.value == "PDF" || kind.value == "IMAGES") {
+                ContentLocator.PdfPageRect(pageIndex.value, 0.0, 0.0, 1.0, 1.0, TextQuote(selected.value))
+            } else {
+                val chapter = chapters.value.getOrNull(chapterIndex.value) ?: return@launch
+                ContentLocator.Epub(chapter.href, 0.0, TextQuote(selected.value))
+            }
+            library.savePosition(editionId, locator)
+        }
+    }
+
+    private suspend fun restorePosition() {
+        val raw = library.position(editionId)?.locatorJson ?: return
+        runCatching {
+            when (val locator = LocatorCodec.decode(raw)) {
+                is ContentLocator.PdfPageRect -> pageIndex.value = locator.pageIndex.coerceAtLeast(0)
+                is ContentLocator.Epub -> {
+                    val idx = chapters.value.indexOfFirst { it.href == locator.href }
+                    if (idx >= 0) chapterIndex.value = idx
+                }
+                else -> Unit
+            }
         }
     }
 }
@@ -249,6 +348,7 @@ class CompanionVm @Inject constructor(
     secrets: SecretStore,
 ) : ViewModel() {
     val bookId: String = checkNotNull(savedStateHandle["bookId"])
+    val seedQuote: String = savedStateHandle.get<String>("quote").orEmpty()
     val conversationId = MutableStateFlow<String?>(null)
     val messages = MutableStateFlow<List<MessageEntity>>(emptyList())
     val usingDeepSeek = MutableStateFlow(secrets.hasDeepSeekKey())
@@ -338,6 +438,7 @@ class SettingsViewModel @Inject constructor(
 @HiltViewModel
 class ImportViewModel @Inject constructor(
     private val library: LibraryRepository,
+    private val projects: ProjectRepository,
     private val prefs: UserPrefs,
 ) : ViewModel() {
     val last = MutableStateFlow<ImportOutcome?>(null)
@@ -345,16 +446,53 @@ class ImportViewModel @Inject constructor(
 
     fun import(uri: Uri, name: String) {
         viewModelScope.launch {
-            last.value = library.importFromUri(
-                uri = uri,
-                displayName = name,
-                coverage = if (excerpt.value) Coverage.EXCERPT else Coverage.WHOLE_BOOK,
-                markExcerpt = excerpt.value,
+            last.value = attachProject(
+                library.importFromUri(
+                    uri = uri,
+                    displayName = name,
+                    coverage = if (excerpt.value) Coverage.EXCERPT else Coverage.WHOLE_BOOK,
+                    markExcerpt = excerpt.value,
+                ),
             )
         }
     }
 
+    fun importBundledEpub() {
+        viewModelScope.launch { last.value = attachProject(library.importBundledEpub()) }
+    }
+
+    fun importBundledPdf() {
+        viewModelScope.launch { last.value = attachProject(library.importBundledPdf()) }
+    }
+
     fun finishOnboarding() = viewModelScope.launch { prefs.setOnboardingDone() }
+
+    private suspend fun attachProject(outcome: ImportOutcome): ImportOutcome {
+        if (outcome.rejectedReason != null || outcome.bookId.isBlank()) return outcome
+        val book = library.book(outcome.bookId)
+        val seed = library.chaptersOf(outcome.editionId).firstOrNull()?.plainText.orEmpty()
+        projects.ensureForBook(outcome.bookId, book?.title ?: "一纸", seed)
+        return outcome
+    }
+}
+
+@HiltViewModel
+class CaptureViewModel @Inject constructor(
+    private val library: LibraryRepository,
+    private val projects: ProjectRepository,
+) : ViewModel() {
+    val last = MutableStateFlow<ImportOutcome?>(null)
+
+    fun importImages(uris: List<Uri>) {
+        viewModelScope.launch {
+            val outcome = library.importImages(uris)
+            if (outcome.rejectedReason == null && outcome.bookId.isNotBlank()) {
+                val book = library.book(outcome.bookId)
+                projects.ensureForBook(outcome.bookId, book?.title ?: "自炊页", "")
+            }
+            last.value = outcome
+        }
+    }
 }
 
 @HiltViewModel
@@ -419,7 +557,12 @@ class PagesViewModel @Inject constructor(
     fun ocrPage(page: PageEntity) {
         viewModelScope.launch {
             val rel = page.imageRelPath ?: return@launch
-            val bytes = store.file(rel).readBytes()
+            val file = store.file(rel)
+            val bytes = if (file.name.endsWith(".pdf", ignoreCase = true)) {
+                PdfPages.pngBytes(file, page.index)
+            } else {
+                runCatching { file.readBytes() }.getOrNull()
+            } ?: return@launch
             val result = ocr.recognize(bytes, OcrKind.PRINT)
             library.updatePageOcr(page.copy(ocrText = result.fullText, recognitionDraft = result.fullText))
             refresh()
