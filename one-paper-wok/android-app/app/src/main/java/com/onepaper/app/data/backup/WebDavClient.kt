@@ -39,7 +39,7 @@ class WebDavClient @Inject constructor(
             .build()
         http.newCall(request).execute().use { response ->
             if (!response.isSuccessful) {
-                error("上传未成功（${response.code}）。请核对待办密码与路径。")
+                error("上传未成功（${response.code}）。请核对应用专用密码与路径。")
             }
         }
     }
