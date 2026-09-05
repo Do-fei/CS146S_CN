@@ -9,7 +9,9 @@ class NormCropTest {
     fun clampKeepsMinimumBox() {
         val box = NormCrop.clamp(0.8, 0.8, 0.81, 0.81)
         assertEquals(0.8, box.left, 0.0001)
-        assertEquals(1.0, box.right, 0.0001)
+        assertEquals(0.85, box.right, 0.0001)
+        assertEquals(0.8, box.top, 0.0001)
+        assertEquals(0.85, box.bottom, 0.0001)
     }
 
     @Test
