@@ -28,6 +28,8 @@ jobs:
           cp one-paper-wok/dist/onepaper-0.1.0-delivery-trial-debug.apk \
             docs/downloads/onepaper-0.1.0-delivery-trial-debug.apk
       - uses: actions/configure-pages@v5
+        with:
+          enablement: true
       - uses: actions/upload-pages-artifact@v3
         with:
           path: docs
