@@ -11,7 +11,7 @@
 | 笔记本 | 摘录/文本/图片；识别稿与用户稿分列 |
 | 一纸项目 | 稳定 sectionId；指定段可编辑；再生成不覆盖用户稿 |
 | 回煲 | ChangeProposal 逐条决定 + 三路合并夹具 |
-| 导出备份 | Markdown 导出、JSON 完整备份恢复、token 不进包 |
+| 导出备份 | Markdown 导出、zip 完整备份（含原书/划线/进度）恢复、token 不进包 |
 | 设置 | 主题、DeepSeek Key、上传偏好、存储、反馈邮箱、关于 |
 
 ## Conditional（未书面划进首版）

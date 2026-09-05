@@ -2,7 +2,7 @@ package com.onepaper.domain.backup
 
 /** WebDAV 路径：无自建账号，只拼用户自己的盘。 */
 object WebDavPath {
-    const val DEFAULT_REMOTE = "/onepaper/onepaper-backup.json"
+    const val DEFAULT_REMOTE = "/onepaper/onepaper-backup.zip"
     const val JIANGUO_HINT = "https://dav.jianguoyun.com/dav"
 
     fun requireHttps(url: String): String {

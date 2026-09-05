@@ -74,6 +74,9 @@ interface PageDao {
 
     @Update
     suspend fun update(page: PageEntity)
+
+    @Query("SELECT * FROM pages")
+    suspend fun all(): List<PageEntity>
 }
 
 @Dao
@@ -122,6 +125,9 @@ interface PositionDao {
 
     @Query("SELECT * FROM reading_positions")
     fun observeAll(): Flow<List<ReadingPositionEntity>>
+
+    @Query("SELECT * FROM reading_positions")
+    suspend fun all(): List<ReadingPositionEntity>
 }
 
 @Dao
@@ -194,6 +200,12 @@ interface ConversationDao {
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsertMessage(item: MessageEntity)
+
+    @Query("SELECT * FROM conversations")
+    suspend fun allConversations(): List<ConversationEntity>
+
+    @Query("SELECT * FROM messages")
+    suspend fun allMessages(): List<MessageEntity>
 }
 
 @Dao

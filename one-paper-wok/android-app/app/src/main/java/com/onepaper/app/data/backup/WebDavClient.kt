@@ -1,12 +1,15 @@
 package com.onepaper.app.data.backup
 
 import com.onepaper.app.data.secure.SecretStore
+import com.onepaper.domain.backup.BackupZip
 import com.onepaper.domain.backup.WebDavPath
 import okhttp3.Credentials
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import okhttp3.RequestBody.Companion.asRequestBody
 import okhttp3.RequestBody.Companion.toRequestBody
+import java.io.File
 import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -17,17 +20,22 @@ class WebDavClient @Inject constructor(
 ) {
     private val http = OkHttpClient.Builder()
         .connectTimeout(20, TimeUnit.SECONDS)
-        .readTimeout(60, TimeUnit.SECONDS)
-        .writeTimeout(60, TimeUnit.SECONDS)
+        .readTimeout(180, TimeUnit.SECONDS)
+        .writeTimeout(180, TimeUnit.SECONDS)
         .build()
 
-    fun upload(bytes: ByteArray) {
+    fun uploadFile(local: File) {
         val target = targetUrl()
         ensureParent(target)
+        val media = if (local.name.endsWith(".zip", true) || BackupZip.looksLikeZip(local)) {
+            "application/zip"
+        } else {
+            "application/json; charset=utf-8"
+        }.toMediaType()
         val request = Request.Builder()
             .url(target)
             .header("Authorization", credential())
-            .put(bytes.toRequestBody("application/json; charset=utf-8".toMediaType()))
+            .put(local.asRequestBody(media))
             .build()
         http.newCall(request).execute().use { response ->
             if (!response.isSuccessful) {
@@ -36,7 +44,7 @@ class WebDavClient @Inject constructor(
         }
     }
 
-    fun download(): ByteArray {
+    fun downloadTo(target: File) {
         val request = Request.Builder()
             .url(targetUrl())
             .header("Authorization", credential())
@@ -45,7 +53,12 @@ class WebDavClient @Inject constructor(
         http.newCall(request).execute().use { response ->
             if (response.code == 404) error("远端还没有备份文件。")
             if (!response.isSuccessful) error("下载未成功（${response.code}）。")
-            return response.body?.bytes() ?: error("远端文件是空的。")
+            val body = response.body ?: error("远端文件是空的。")
+            target.parentFile?.mkdirs()
+            body.byteStream().use { input ->
+                target.outputStream().use { input.copyTo(it) }
+            }
+            if (!target.isFile || target.length() == 0L) error("远端文件是空的。")
         }
     }
 

@@ -212,6 +212,7 @@ fun HandwritingScreen(onBack: () -> Unit, vm: NoteViewModel = hiltViewModel()) {
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             Text("左：识别稿。右：你改的是用户稿。", style = MaterialTheme.typography.bodyMedium)
+            Text("这是打字改用户稿，不是数字墨水。", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             Text("识别：${note?.recognitionDraft ?: "（无）"}", style = MaterialTheme.typography.bodySmall)
             QuietField(value = user, onValueChange = { user = it }, label = "用户稿", modifier = Modifier.fillMaxWidth(), minLines = 6)
             QuietButton("保存用户稿", { vm.save(note?.title.orEmpty(), user, note?.recognitionDraft) }, Modifier.fillMaxWidth(), glyph = ZenGlyph.Brush, tone = QuietTone.Ink)

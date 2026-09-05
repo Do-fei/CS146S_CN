@@ -10,6 +10,7 @@ import com.onepaper.app.data.importing.EpubTextExtractor
 import com.onepaper.app.data.importing.ImportType
 import com.onepaper.app.data.importing.PdfGuard
 import com.onepaper.app.data.importing.PdfPages
+import com.onepaper.domain.pdf.PdfBudget
 import com.onepaper.domain.pdf.PdfTextLayer
 import com.onepaper.app.data.local.AnnotationDao
 import com.onepaper.app.data.local.AnnotationEntity
@@ -295,7 +296,12 @@ class LibraryRepository @Inject constructor(
         val pageCount = PdfPages.count(file)
         val bookId = UUID.randomUUID().toString()
         val title = prettyTitle(name, ".pdf")
-        val layers = runCatching { PdfTextLayer.extractPages(file.readBytes(), pageCount) }.getOrDefault(emptyList())
+        val tooLarge = !PdfBudget.canExtractInMemory(file.length())
+        val layers = if (tooLarge) {
+            emptyList()
+        } else {
+            runCatching { PdfTextLayer.extractPages(file.readBytes(), pageCount) }.getOrDefault(emptyList())
+        }
         persistImported(
             bookId = bookId,
             editionId = editionId,
@@ -327,7 +333,11 @@ class LibraryRepository @Inject constructor(
                 },
             )
         }
-        return ImportOutcome(bookId, editionId)
+        return ImportOutcome(
+            bookId,
+            editionId,
+            detail = if (tooLarge) PdfBudget.tooLargeMessage() else null,
+        )
     }
 
     suspend fun importBundledEpub(): ImportOutcome {
@@ -543,16 +553,19 @@ class LibraryRepository @Inject constructor(
         if (existing.isEmpty() || existing.none { it.embeddedText == null }) return
         val file = store.file(edition.relativePath)
         if (!file.exists()) return
-        val layers = runCatching {
-            PdfTextLayer.extractPages(file.readBytes(), existing.size)
-        }.getOrDefault(emptyList())
+        val skipExtract = !PdfBudget.canExtractInMemory(file.length())
+        val layers = if (skipExtract) {
+            emptyList()
+        } else {
+            runCatching { PdfTextLayer.extractPages(file.readBytes(), existing.size) }.getOrDefault(emptyList())
+        }
         existing.forEach { page ->
             if (page.embeddedText != null) return@forEach
             val layer = layers.getOrNull(page.index)
             pages.update(
                 page.copy(
-                    embeddedText = layer?.text.orEmpty(),
-                    hasTextLayer = layer?.hasTextOperators == true,
+                    embeddedText = if (skipExtract) "" else layer?.text.orEmpty(),
+                    hasTextLayer = !skipExtract && layer?.hasTextOperators == true,
                 ),
             )
         }

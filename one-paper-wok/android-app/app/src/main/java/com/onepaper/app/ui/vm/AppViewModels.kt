@@ -28,6 +28,7 @@ import com.onepaper.app.data.repo.ImportOutcome
 import com.onepaper.app.data.repo.LibraryRepository
 import com.onepaper.app.data.repo.NoteRepository
 import com.onepaper.app.data.repo.ProjectRepository
+import com.onepaper.domain.backup.RestoreOutcome
 import com.onepaper.app.data.repo.SearchRepository
 import com.onepaper.app.data.local.AnnotationEntity
 import com.onepaper.app.data.ocr.OcrBoxCodec
@@ -775,10 +776,10 @@ class BackupViewModel @Inject constructor(
         viewModelScope.launch {
             runCatching {
                 withContext(Dispatchers.IO) {
-                    val file = backup.exportJson()
-                    webdav.upload(file.readBytes())
+                    val file = backup.exportArchive()
+                    webdav.uploadFile(file)
                 }
-                message.value = "已上传到 WebDAV（不含 DeepSeek Key / WebDAV 密码）。"
+                message.value = "已上传 zip 到 WebDAV。同路径后写覆盖。不含 DeepSeek Key / WebDAV 密码。"
             }.onFailure { message.value = it.message }
         }
     }
@@ -786,21 +787,21 @@ class BackupViewModel @Inject constructor(
     fun restoreWebDav() {
         viewModelScope.launch {
             runCatching {
-                val raw = withContext(Dispatchers.IO) {
-                    webdav.download().toString(Charsets.UTF_8)
+                val outcome = withContext(Dispatchers.IO) {
+                    val incoming = backup.stagingFile("webdav-incoming.bin")
+                    webdav.downloadTo(incoming)
+                    backup.restoreFile(incoming)
                 }
-                val manifest = backup.preview(raw)
-                backup.restore(raw)
-                message.value = "已从 WebDAV 恢复 ${manifest.bookCount} 本书、${manifest.noteCount} 则笔记。"
+                message.value = outcome.userMessage()
             }.onFailure { message.value = it.message }
         }
     }
 
     fun exportLibrary() {
         viewModelScope.launch {
-            val file = backup.exportJson()
+            val file = backup.exportArchive()
             filePath.value = file.absolutePath
-            message.value = "已写出备份（不含 token）：${file.name}"
+            message.value = "已写出完整备份（zip，含原书/划线/进度，不含 Key）：${file.name}"
         }
     }
 
@@ -808,7 +809,7 @@ class BackupViewModel @Inject constructor(
         viewModelScope.launch {
             runCatching {
                 backup.exportToUri(resolver, uri)
-                message.value = "已导出到所选文件（不含 DeepSeek Key）。"
+                message.value = "已导出 zip（含原书/划线/进度，不含 DeepSeek Key）。"
             }.onFailure { message.value = it.message }
         }
     }
@@ -816,8 +817,8 @@ class BackupViewModel @Inject constructor(
     fun restoreFromUri(resolver: ContentResolver, uri: Uri) {
         viewModelScope.launch {
             runCatching {
-                val manifest = backup.restoreFromUri(resolver, uri)
-                message.value = "已从文件恢复 ${manifest.bookCount} 本书、${manifest.noteCount} 则笔记。"
+                val outcome = backup.restoreFromUri(resolver, uri)
+                message.value = outcome.userMessage()
             }.onFailure { message.value = it.message }
         }
     }
@@ -854,9 +855,8 @@ class BackupViewModel @Inject constructor(
     fun restore(raw: String) {
         viewModelScope.launch {
             runCatching {
-                val manifest = backup.preview(raw)
-                backup.restore(raw)
-                message.value = "已恢复 ${manifest.bookCount} 本书、${manifest.noteCount} 则笔记。"
+                val outcome: RestoreOutcome = backup.restore(raw)
+                message.value = outcome.userMessage()
             }.onFailure { message.value = it.message }
         }
     }

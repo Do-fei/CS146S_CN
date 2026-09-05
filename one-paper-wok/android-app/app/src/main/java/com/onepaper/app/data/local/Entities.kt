@@ -43,6 +43,7 @@ data class ChapterEntity(
     val contentVersion: String,
 )
 
+@Serializable
 @Entity(tableName = "pages", indices = [Index("editionId")])
 data class PageEntity(
     @PrimaryKey val id: String,
@@ -70,6 +71,7 @@ data class NoteEntity(
     val updatedAt: Long,
 )
 
+@Serializable
 @Entity(tableName = "annotations")
 data class AnnotationEntity(
     @PrimaryKey val id: String,
@@ -82,6 +84,7 @@ data class AnnotationEntity(
     val createdAt: Long,
 )
 
+@Serializable
 @Entity(tableName = "reading_positions")
 data class ReadingPositionEntity(
     @PrimaryKey val editionId: String,
@@ -135,6 +138,7 @@ data class ProposalItemEntity(
     val editedBody: String?,
 )
 
+@Serializable
 @Entity(tableName = "conversations")
 data class ConversationEntity(
     @PrimaryKey val id: String,
@@ -143,6 +147,7 @@ data class ConversationEntity(
     val updatedAt: Long,
 )
 
+@Serializable
 @Entity(tableName = "messages")
 data class MessageEntity(
     @PrimaryKey val id: String,

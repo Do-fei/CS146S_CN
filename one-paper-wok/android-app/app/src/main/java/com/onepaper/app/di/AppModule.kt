@@ -39,7 +39,6 @@ object AppModule {
     fun database(@ApplicationContext context: Context): AppDatabase =
         Room.databaseBuilder(context, AppDatabase::class.java, "onepaper.db")
             .addMigrations(AppDatabase.MIGRATION_1_2, AppDatabase.MIGRATION_2_3)
-            .fallbackToDestructiveMigration()
             .build()
 
     @Provides fun bookDao(db: AppDatabase): BookDao = db.bookDao()

@@ -30,6 +30,8 @@ class PrivateStore @Inject constructor(
         return dest
     }
 
+    fun filesDir(): File = context.filesDir
+
     fun file(relativePath: String): File = File(context.filesDir, relativePath)
 
     fun relative(file: File): String = file.relativeTo(context.filesDir).path

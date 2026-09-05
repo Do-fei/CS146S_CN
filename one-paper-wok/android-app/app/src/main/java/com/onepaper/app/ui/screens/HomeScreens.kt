@@ -831,6 +831,12 @@ fun SettingsScreen(onBack: () -> Unit, vm: SettingsViewModel = hiltViewModel()) 
             Text("OPPO 小折叠 / 外屏：未在本机实测。宽屏（≥600dp）改用侧栏，不能代替折叠真机。", style = MaterialTheme.typography.bodySmall, color = scheme.onSurfaceVariant)
             Text("Readium：本版 EPUB 走抽出文本 + Locator，未接官方 Navigator。", style = MaterialTheme.typography.bodySmall, color = scheme.onSurfaceVariant)
             Text("ML Kit 无 GMS：bundled 中文模型已接入，无 GMS 机型准确率未测。", style = MaterialTheme.typography.bodySmall, color = scheme.onSurfaceVariant)
+            Kicker("已知限制")
+            Text("完整备份是 zip：含原书、封面、扫描页、划线、进度、一纸。不含 DeepSeek Key / WebDAV 密码。旧版 JSON 只能恢复目录，没有原书。", style = MaterialTheme.typography.bodySmall, color = scheme.onSurfaceVariant)
+            Text("WebDAV 同路径后写覆盖，没有版本历史。", style = MaterialTheme.typography.bodySmall, color = scheme.onSurfaceVariant)
+            Text("PDF 文本层是启发式抽取；超过 32MB 不整本抽，可按页识别，不当原文。PDF 不重排。", style = MaterialTheme.typography.bodySmall, color = scheme.onSurfaceVariant)
+            Text("手写校对是打字改用户稿，不是数字墨水。", style = MaterialTheme.typography.bodySmall, color = scheme.onSurfaceVariant)
+            Text("库内检索是本机 n-gram，不是向量。", style = MaterialTheme.typography.bodySmall, color = scheme.onSurfaceVariant)
             Text("本地占用约 ${usage / 1024} KB", style = MaterialTheme.typography.bodySmall, color = scheme.onSurfaceVariant)
             Text("一纸书煲 / OnePaper  0.1.0-delivery", style = MaterialTheme.typography.bodySmall, color = scheme.onSurfaceVariant)
             Text("无 Key 时阅读、笔记、导出仍可用。印刷 OCR 走端侧 ML Kit。", style = MaterialTheme.typography.bodySmall, color = scheme.onSurfaceVariant)
@@ -867,7 +873,7 @@ fun BackupScreen(onBack: () -> Unit, vm: BackupViewModel = hiltViewModel()) {
     val davSaved by vm.davSaved.collectAsStateWithLifecycle()
     var restoreText by remember { mutableStateOf("") }
     val context = LocalContext.current
-    val createDoc = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { uri ->
+    val createDoc = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/zip")) { uri ->
         if (uri != null) vm.exportToUri(context.contentResolver, uri)
     }
     val restorePicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
@@ -879,17 +885,18 @@ fun BackupScreen(onBack: () -> Unit, vm: BackupViewModel = hiltViewModel()) {
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             ZenMark(ZenGlyph.Stack, Modifier.height(72.dp).fillMaxWidth())
-            Text("无账号可用。主路径是导出/导入文件。备份不含 DeepSeek Key / token。", style = MaterialTheme.typography.bodyMedium)
+            Text("无账号可用。主路径是导出/导入 zip。完整包含原书、划线、进度；不含 DeepSeek Key / WebDAV 密码。", style = MaterialTheme.typography.bodyMedium)
+            Text("旧版 JSON 仍能恢复目录，但没有原书文件。恢复按同 id 写入，后写覆盖。", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             QuietButton(
                 "导出到文件",
-                { createDoc.launch("onepaper-backup.json") },
+                { createDoc.launch("onepaper-backup.zip") },
                 Modifier.fillMaxWidth(),
                 glyph = ZenGlyph.Stack,
                 tone = QuietTone.Ink,
             )
             QuietButton(
                 "从文件恢复",
-                { restorePicker.launch(arrayOf("application/json", "text/*", "*/*")) },
+                { restorePicker.launch(arrayOf("application/zip", "application/json", "*/*")) },
                 Modifier.fillMaxWidth(),
                 glyph = ZenGlyph.Import,
             )
@@ -897,7 +904,7 @@ fun BackupScreen(onBack: () -> Unit, vm: BackupViewModel = hiltViewModel()) {
             if (filePath != null) {
                 QuietButton(
                     "系统分享缓存备份",
-                    { ExportShare.sendFile(context, File(filePath!!), "application/json", "分享备份") },
+                    { ExportShare.sendFile(context, File(filePath!!), "application/zip", "分享备份") },
                     Modifier.fillMaxWidth(),
                     glyph = ZenGlyph.Share,
                 )
@@ -913,7 +920,7 @@ fun BackupScreen(onBack: () -> Unit, vm: BackupViewModel = hiltViewModel()) {
             QuietButton("从粘贴恢复", { vm.restore(restoreText) }, Modifier.fillMaxWidth(), tone = QuietTone.Ghost)
             SectionTitle("WebDAV（无自建账号）", glyph = ZenGlyph.Cloud)
             Text(
-                "填你自己的盘，例如坚果云。只用 HTTPS。密码请用应用专用密码。凭据进本机密钥库，不进备份包。",
+                "填你自己的盘，例如坚果云。只用 HTTPS。密码请用应用专用密码。凭据进本机密钥库，不进备份包。同路径后写覆盖，没有版本历史。默认文件名是 onepaper-backup.zip。",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
