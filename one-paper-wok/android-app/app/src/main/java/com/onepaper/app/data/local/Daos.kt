@@ -33,6 +33,9 @@ interface EditionDao {
     @Query("SELECT * FROM editions WHERE id = :id")
     suspend fun get(id: String): EditionEntity?
 
+    @Query("SELECT * FROM editions")
+    fun observeAll(): Flow<List<EditionEntity>>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsert(edition: EditionEntity)
 }
@@ -98,6 +101,9 @@ interface PositionDao {
 
     @Query("SELECT * FROM reading_positions WHERE editionId = :editionId")
     suspend fun get(editionId: String): ReadingPositionEntity?
+
+    @Query("SELECT * FROM reading_positions")
+    fun observeAll(): Flow<List<ReadingPositionEntity>>
 }
 
 @Dao

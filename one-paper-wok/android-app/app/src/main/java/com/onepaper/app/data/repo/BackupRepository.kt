@@ -14,6 +14,8 @@ import com.onepaper.app.data.local.ProjectDao
 import com.onepaper.app.data.local.ProjectEntity
 import com.onepaper.app.data.local.ProjectSectionEntity
 import com.onepaper.app.data.local.SectionDao
+import android.content.ContentResolver
+import android.net.Uri
 import com.onepaper.domain.backup.BackupManifest
 import com.onepaper.domain.backup.BackupPolicy
 import kotlinx.serialization.Serializable
@@ -71,6 +73,21 @@ class BackupRepository @Inject constructor(
         val file = store.exportFile("onepaper-backup.json")
         file.writeText(json.encodeToString(payload))
         return file
+    }
+
+    suspend fun exportToUri(resolver: ContentResolver, uri: Uri): String {
+        val file = exportJson()
+        resolver.openOutputStream(uri)?.use { out ->
+            file.inputStream().use { input -> input.copyTo(out) }
+        } ?: error("无法写入所选文件")
+        return uri.toString()
+    }
+
+    suspend fun restoreFromUri(resolver: ContentResolver, uri: Uri): BackupManifest {
+        val raw = resolver.openInputStream(uri)?.bufferedReader()?.use { it.readText() }
+            ?: error("无法读取所选文件")
+        restore(raw)
+        return preview(raw)
     }
 
     suspend fun preview(raw: String): BackupManifest {

@@ -147,6 +147,9 @@ data class MessageEntity(
     val text: String,
     val insufficientEvidence: Boolean,
     val createdAt: Long,
+    val quote: String? = null,
+    val locatorJson: String? = null,
+    val editionId: String? = null,
 )
 
 @Entity(tableName = "jobs")

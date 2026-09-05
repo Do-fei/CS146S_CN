@@ -6,6 +6,8 @@ import com.onepaper.domain.ai.CompanionRequest
 import com.onepaper.domain.ai.RecookJsonParser
 import com.onepaper.domain.recook.ChangeProposal
 import com.onepaper.domain.recook.ProjectSnapshot
+import com.onepaper.domain.ai.ChatSseParser
+import kotlinx.coroutines.ensureActive
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
@@ -16,6 +18,7 @@ import okhttp3.RequestBody.Companion.toRequestBody
 import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlin.coroutines.coroutineContext
 
 @Singleton
 class DeepSeekClient @Inject constructor(
@@ -29,23 +32,8 @@ class DeepSeekClient @Inject constructor(
         .build()
 
     fun answer(request: CompanionRequest): CompanionAnswer {
+        answerGuards(request)?.let { return it }
         val key = secrets.deepSeekKey() ?: error("missing key")
-        if (looksLikeWholeBook(request.question) && !request.scope.claimsWholeBook) {
-            return CompanionAnswer(
-                text = "目前只导入了部分章节/页，不能给出全书结论。请把问题限制在已导入范围内。",
-                citations = request.evidence,
-                insufficientEvidence = true,
-                refusedWholeBookConclusion = true,
-            )
-        }
-        if (request.evidence.isEmpty()) {
-            return CompanionAnswer(
-                text = "证据不足：当前提问没有可点回的原文定位。",
-                citations = emptyList(),
-                insufficientEvidence = true,
-                refusedWholeBookConclusion = false,
-            )
-        }
         val evidenceBlock = request.evidence.joinToString("\n") { "- 「${it.quote}」" }
         val system = """
             你是一纸书煲的阅读搭子。只根据用户已导入范围内的引用回答。
@@ -66,6 +54,58 @@ class DeepSeekClient @Inject constructor(
             insufficientEvidence = false,
             refusedWholeBookConclusion = false,
         )
+    }
+
+    suspend fun answerStreaming(
+        request: CompanionRequest,
+        onDelta: (String) -> Unit,
+    ): CompanionAnswer {
+        val prepared = answerGuards(request)
+        if (prepared != null) {
+            onDelta(prepared.text)
+            return prepared
+        }
+        val key = secrets.deepSeekKey() ?: error("missing key")
+        val evidenceBlock = request.evidence.joinToString("\n") { "- 「${it.quote}」" }
+        val system = """
+            你是一纸书煲的阅读搭子。只根据用户已导入范围内的引用回答。
+            不要假装读过未导入的部分。不要输出全书结论，除非范围标明是全书。
+            不要索要或重复 API Key。引用必须来自下列证据。
+            用简体中文。
+        """.trimIndent()
+        val user = """
+            问题：${request.question}
+            已导入章节数：${request.scope.importedChapterCount}，页数：${request.scope.importedPageCount}，是否全书：${request.scope.claimsWholeBook}
+            证据：
+            $evidenceBlock
+        """.trimIndent()
+        val text = completeStreaming(key, listOf(Msg("system", system), Msg("user", user)), onDelta)
+        return CompanionAnswer(
+            text = text,
+            citations = request.evidence,
+            insufficientEvidence = false,
+            refusedWholeBookConclusion = false,
+        )
+    }
+
+    private fun answerGuards(request: CompanionRequest): CompanionAnswer? {
+        if (looksLikeWholeBook(request.question) && !request.scope.claimsWholeBook) {
+            return CompanionAnswer(
+                text = "目前只导入了部分章节/页，不能给出全书结论。请把问题限制在已导入范围内。",
+                citations = request.evidence,
+                insufficientEvidence = true,
+                refusedWholeBookConclusion = true,
+            )
+        }
+        if (request.evidence.isEmpty()) {
+            return CompanionAnswer(
+                text = "证据不足：当前提问没有可点回的原文定位。",
+                citations = emptyList(),
+                insufficientEvidence = true,
+                refusedWholeBookConclusion = false,
+            )
+        }
+        return null
     }
 
     fun proposeRecook(base: ProjectSnapshot, userNotes: List<String>): ChangeProposal {
@@ -113,6 +153,51 @@ class DeepSeekClient @Inject constructor(
             val parsed = json.decodeFromString<ChatResponse>(raw)
             return parsed.choices.firstOrNull()?.message?.content?.trim().orEmpty()
                 .ifBlank { error("DeepSeek 返回空内容") }
+        }
+    }
+
+    private suspend fun completeStreaming(
+        apiKey: String,
+        messages: List<Msg>,
+        onDelta: (String) -> Unit,
+    ): String {
+        val body = ChatRequest(
+            model = MODEL,
+            messages = messages,
+            stream = true,
+            response_format = null,
+        )
+        val req = Request.Builder()
+            .url(ENDPOINT)
+            .addHeader("Authorization", "Bearer $apiKey")
+            .addHeader("Content-Type", "application/json")
+            .addHeader("Accept", "text/event-stream")
+            .post(json.encodeToString(body).toRequestBody(JSON))
+            .build()
+        val call = http.newCall(req)
+        try {
+            call.execute().use { resp ->
+                if (!resp.isSuccessful) {
+                    if (resp.code == 401 || resp.code == 403) {
+                        error("DeepSeek Key 无效或额度不足")
+                    }
+                    error("DeepSeek 请求失败（${resp.code}）")
+                }
+                val source = resp.body?.source() ?: error("DeepSeek 返回空内容")
+                val acc = StringBuilder()
+                while (!source.exhausted()) {
+                    coroutineContext.ensureActive()
+                    val line = source.readUtf8Line() ?: break
+                    val data = ChatSseParser.dataFromLine(line) ?: continue
+                    val piece = ChatSseParser.contentFromData(data) ?: continue
+                    acc.append(piece)
+                    onDelta(acc.toString())
+                }
+                return acc.toString().trim().ifBlank { error("DeepSeek 返回空内容") }
+            }
+        } catch (cancelled: kotlinx.coroutines.CancellationException) {
+            call.cancel()
+            throw cancelled
         }
     }
 

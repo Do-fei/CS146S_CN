@@ -135,10 +135,15 @@ fun RecookScreen(onBack: () -> Unit, vm: RecookViewModel = hiltViewModel()) {
 @Composable
 fun CompanionScreen(
     onBack: () -> Unit,
+    onOpenLocator: (editionId: String, quote: String, href: String?, page: Int?) -> Unit,
     vm: CompanionVm = hiltViewModel(),
 ) {
     val items by vm.messages.collectAsStateWithLifecycle()
     val usingDeepSeek by vm.usingDeepSeek.collectAsStateWithLifecycle()
+    val uploadPages by vm.uploadPages.collectAsStateWithLifecycle()
+    val busy by vm.busy.collectAsStateWithLifecycle()
+    val streaming by vm.streaming.collectAsStateWithLifecycle()
+    val notice by vm.notice.collectAsStateWithLifecycle()
     var draft by remember { mutableStateOf("") }
     var quote by remember { mutableStateOf(vm.seedQuote) }
     PaperScaffold(title = "AI 搭子", onBack = onBack) { padding ->
@@ -147,27 +152,56 @@ fun CompanionScreen(
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             Banner(
-                if (usingDeepSeek) "将用你保存在本机的 DeepSeek Key 提问，只发送当前证据片段。"
-                else "未填写 DeepSeek Key，当前走本地说明。阅读不受影响。",
+                buildString {
+                    append(if (usingDeepSeek) "通道：DeepSeek Key（本机）。" else "通道：本地说明（Fake）。")
+                    append(if (uploadPages) " 发送范围：允许附当前选区/书页。" else " 发送范围：关。无选区不附原文。")
+                    append(" 提问可取消。")
+                },
             )
+            notice?.let { Banner(it) }
             items.forEach { msg ->
                 PaperCard(Modifier.fillMaxWidth()) {
                     Kicker(if (msg.role == "user") "我" else "搭子")
                     Text(msg.text, style = MaterialTheme.typography.bodyMedium)
+                    val cited = msg.quote?.takeIf { it.isNotBlank() }
+                    if (cited != null) {
+                        Text("引用：$cited", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        val edition = msg.editionId
+                        if (edition != null) {
+                            QuietButton(
+                                "回原文",
+                                {
+                                    val jump = com.onepaper.domain.citation.LocatorJump.fromJson(msg.locatorJson)
+                                    onOpenLocator(edition, jump?.quote ?: cited, jump?.href, jump?.pageIndex)
+                                },
+                                glyph = ZenGlyph.Book,
+                            )
+                        }
+                    }
                     if (msg.insufficientEvidence) {
                         Text("证据不足", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.tertiary)
                     }
                 }
             }
-            QuietField(value = quote, onValueChange = { quote = it }, label = "引用原文（可点回）", modifier = Modifier.fillMaxWidth())
+            if (busy && streaming.isNotBlank()) {
+                PaperCard(Modifier.fillMaxWidth()) {
+                    Kicker("搭子（流式）")
+                    Text(streaming, style = MaterialTheme.typography.bodyMedium)
+                }
+            }
+            QuietField(value = quote, onValueChange = { quote = it }, label = "引用原文（消息上可点回）", modifier = Modifier.fillMaxWidth())
             QuietField(value = draft, onValueChange = { draft = it }, label = "提问", modifier = Modifier.fillMaxWidth())
-            QuietButton(
-                "发送（可停于无额度/离线）",
-                { vm.ask(draft, quote.ifBlank { null }); draft = "" },
-                Modifier.fillMaxWidth(),
-                glyph = ZenGlyph.Chat,
-                tone = QuietTone.Ink,
-            )
+            if (busy) {
+                QuietButton("取消本次提问", vm::cancelAsk, Modifier.fillMaxWidth(), tone = QuietTone.Danger)
+            } else {
+                QuietButton(
+                    "发送",
+                    { vm.ask(draft, quote.ifBlank { null }); draft = "" },
+                    Modifier.fillMaxWidth(),
+                    glyph = ZenGlyph.Chat,
+                    tone = QuietTone.Ink,
+                )
+            }
             LayerChip(KnowledgeLayer.AI)
         }
     }
@@ -177,9 +211,12 @@ fun CompanionScreen(
 fun NoteScreen(
     onBack: () -> Unit,
     onHandwriting: (String) -> Unit,
+    onOpenSource: (editionId: String, quote: String, href: String?, page: Int?) -> Unit,
     vm: NoteViewModel = hiltViewModel(),
 ) {
     val note by vm.note.collectAsStateWithLifecycle()
+    val jump by vm.jump.collectAsStateWithLifecycle()
+    val jumpEdition by vm.jumpEditionId.collectAsStateWithLifecycle()
     var title by remember { mutableStateOf("") }
     var body by remember { mutableStateOf("") }
     var recognition by remember { mutableStateOf("") }
@@ -197,6 +234,15 @@ fun NoteScreen(
             QuietField(value = body, onValueChange = { body = it; vm.save(title, body, recognition.ifBlank { null }) }, label = "我的稿", modifier = Modifier.fillMaxWidth(), minLines = 6)
             QuietField(value = recognition, onValueChange = {}, enabled = false, label = "识别稿（只读，不当原文）", modifier = Modifier.fillMaxWidth())
             LayerChip(KnowledgeLayer.USER)
+            if (jump != null && jumpEdition != null) {
+                QuietButton(
+                    "回原文",
+                    { onOpenSource(jumpEdition!!, jump!!.quote, jump!!.href, jump!!.pageIndex) },
+                    Modifier.fillMaxWidth(),
+                    glyph = ZenGlyph.Book,
+                    tone = QuietTone.Ink,
+                )
+            }
             if (vm.noteId != null) {
                 QuietButton("手写校对", { onHandwriting(vm.noteId) }, Modifier.fillMaxWidth(), glyph = ZenGlyph.Brush)
             }

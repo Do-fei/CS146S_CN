@@ -7,8 +7,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import com.onepaper.app.ui.graphics.ZenGlyph
-import com.onepaper.app.ui.graphics.ZenMark
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavType
@@ -16,6 +14,8 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import com.onepaper.app.ui.graphics.ZenGlyph
+import com.onepaper.app.ui.graphics.ZenMark
 import com.onepaper.app.ui.screens.BackupScreen
 import com.onepaper.app.ui.screens.BookScreen
 import com.onepaper.app.ui.screens.CaptureScreen
@@ -58,6 +58,7 @@ fun OnePaperRoot(modifier: Modifier = Modifier) {
         composable(Routes.Home) {
             HomePager(
                 onOpenBook = { nav.navigate(Routes.book(it)) },
+                onContinueRead = { nav.navigate(Routes.reader(it)) },
                 onImport = { nav.navigate(Routes.Import) },
                 onCapture = { nav.navigate(Routes.Capture) },
                 onOpenProject = { nav.navigate(Routes.project(it)) },
@@ -76,9 +77,19 @@ fun OnePaperRoot(modifier: Modifier = Modifier) {
                 onBack = { nav.popBackStack() },
             )
         }
-        composable(Routes.Reader) {
+        composable(
+            route = Routes.Reader,
+            arguments = listOf(
+                navArgument("editionId") { type = NavType.StringType },
+                navArgument("quote") { type = NavType.StringType; defaultValue = "" },
+                navArgument("href") { type = NavType.StringType; defaultValue = "" },
+                navArgument("page") { type = NavType.StringType; defaultValue = "" },
+            ),
+        ) {
             ReaderScreen(
-                onCompanion = { bookId, quote -> nav.navigate(Routes.companion(bookId, quote)) },
+                onCompanion = { bookId, quote, locator, editionId ->
+                    nav.navigate(Routes.companion(bookId, quote, locator, editionId))
+                },
                 onBack = { nav.popBackStack() },
             )
         }
@@ -110,12 +121,24 @@ fun OnePaperRoot(modifier: Modifier = Modifier) {
             arguments = listOf(
                 navArgument("bookId") { type = NavType.StringType },
                 navArgument("quote") { type = NavType.StringType; defaultValue = "" },
+                navArgument("locator") { type = NavType.StringType; defaultValue = "" },
+                navArgument("editionId") { type = NavType.StringType; defaultValue = "" },
             ),
-        ) { CompanionScreen(onBack = { nav.popBackStack() }) }
+        ) {
+            CompanionScreen(
+                onBack = { nav.popBackStack() },
+                onOpenLocator = { editionId, quote, href, page ->
+                    nav.navigate(Routes.reader(editionId, quote, href, page))
+                },
+            )
+        }
         composable(Routes.Note) {
             NoteScreen(
                 onBack = { nav.popBackStack() },
                 onHandwriting = { nav.navigate(Routes.handwriting(it)) },
+                onOpenSource = { editionId, quote, href, page ->
+                    nav.navigate(Routes.reader(editionId, quote, href, page))
+                },
             )
         }
         composable(Routes.Export) { ExportScreen(onBack = { nav.popBackStack() }) }

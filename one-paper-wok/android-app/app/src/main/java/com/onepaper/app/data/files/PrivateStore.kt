@@ -14,6 +14,7 @@ class PrivateStore @Inject constructor(
 ) {
     private val root: File = File(context.filesDir, "library").apply { mkdirs() }
     private val exports: File = File(context.cacheDir, "exports").apply { mkdirs() }
+    private val captures: File = File(context.cacheDir, "captures").apply { mkdirs() }
 
     fun editionDir(editionId: String): File = File(root, editionId).apply { mkdirs() }
 
@@ -34,6 +35,8 @@ class PrivateStore @Inject constructor(
     fun relative(file: File): String = file.relativeTo(context.filesDir).path
 
     fun exportFile(name: String): File = File(exports, name)
+
+    fun captureFile(name: String): File = File(captures, name)
 
     fun sha256(file: File): String {
         val digest = MessageDigest.getInstance("SHA-256")

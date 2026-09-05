@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -261,12 +262,77 @@ fun PaperCard(
 }
 
 @Composable
+fun QuietNavRail(selected: Int, onSelect: (Int) -> Unit, modifier: Modifier = Modifier) {
+    val items = listOf(
+        Triple(ZenGlyph.Books, "书架", 0),
+        Triple(ZenGlyph.Sheet, "一纸", 1),
+        Triple(ZenGlyph.Bowl, "食堂", 2),
+        Triple(ZenGlyph.Seal, "我的", 3),
+    )
+    val scheme = MaterialTheme.colorScheme
+    Row(
+        modifier
+            .fillMaxHeight()
+            .statusBarsPadding()
+            .navigationBarsPadding(),
+    ) {
+        Column(
+            Modifier
+                .width(88.dp)
+                .fillMaxHeight()
+                .background(scheme.background)
+                .padding(vertical = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            items.forEach { (glyph, label, index) ->
+                val on = selected == index
+                Column(
+                    Modifier
+                        .fillMaxWidth()
+                        .clip(PaperCorner)
+                        .clickable { onSelect(index) }
+                        .padding(vertical = 12.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(6.dp),
+                ) {
+                    ZenIcon(
+                        glyph,
+                        tint = if (on) scheme.onSurface else scheme.onSurfaceVariant,
+                        contentDescription = label,
+                    )
+                    Text(
+                        label,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = if (on) scheme.onSurface else scheme.onSurfaceVariant,
+                    )
+                    Box(
+                        Modifier
+                            .size(3.dp)
+                            .clip(CircleShape)
+                            .background(if (on) scheme.tertiary else Color.Transparent),
+                    )
+                }
+            }
+        }
+        Box(
+            Modifier
+                .width(1.dp)
+                .fillMaxHeight()
+                .background(scheme.outline.copy(alpha = 0.55f)),
+        )
+    }
+}
+
+@Composable
 fun BookSpineCard(
     title: String,
     subtitle: String,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     layer: KnowledgeLayer = KnowledgeLayer.SOURCE,
+    progressLabel: String? = null,
+    onContinue: (() -> Unit)? = null,
 ) {
     val scheme = MaterialTheme.colorScheme
     val spine = spineInk(title)
@@ -285,12 +351,28 @@ fun BookSpineCard(
                 .height(72.dp)
                 .background(spine),
         )
-        Column(Modifier.padding(horizontal = 14.dp, vertical = 14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Column(
+            Modifier
+                .weight(1f)
+                .padding(horizontal = 14.dp, vertical = 14.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
             Text(title, style = MaterialTheme.typography.titleMedium)
             if (subtitle.isNotBlank()) {
                 Text(subtitle, style = MaterialTheme.typography.bodySmall, color = scheme.onSurfaceVariant)
             }
+            if (!progressLabel.isNullOrBlank()) {
+                Text(progressLabel, style = MaterialTheme.typography.labelSmall, color = scheme.onSurfaceVariant)
+            }
             LayerChip(layer)
+            if (onContinue != null) {
+                Text(
+                    "继续",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = scheme.onSurface,
+                    modifier = Modifier.clickable(onClick = onContinue),
+                )
+            }
         }
     }
 }

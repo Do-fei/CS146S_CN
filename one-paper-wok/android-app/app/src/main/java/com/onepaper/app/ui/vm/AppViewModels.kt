@@ -1,11 +1,13 @@
 package com.onepaper.app.ui.vm
 
 import android.app.Application
+import android.content.ContentResolver
 import android.net.Uri
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.onepaper.app.data.files.PrivateStore
+import com.onepaper.app.data.image.CaptureBitmap
 import com.onepaper.app.data.importing.PdfPages
 import com.onepaper.app.data.local.BookEntity
 import com.onepaper.app.data.local.ChapterEntity
@@ -24,11 +26,14 @@ import com.onepaper.app.data.repo.ImportOutcome
 import com.onepaper.app.data.repo.LibraryRepository
 import com.onepaper.app.data.repo.NoteRepository
 import com.onepaper.app.data.repo.ProjectRepository
+import com.onepaper.app.data.repo.ShelfItem
 import com.onepaper.domain.citation.ContentLocator
 import com.onepaper.domain.citation.LocatorCodec
+import com.onepaper.domain.citation.LocatorJump
 import com.onepaper.domain.citation.LocatorResolver
 import com.onepaper.domain.citation.EpubChapter
 import com.onepaper.domain.citation.EpubDocument
+import com.onepaper.domain.citation.ReaderJump
 import com.onepaper.domain.citation.TextQuote
 import com.onepaper.domain.model.Coverage
 import com.onepaper.domain.ocr.OcrEngine
@@ -36,6 +41,8 @@ import com.onepaper.domain.ocr.OcrKind
 import com.onepaper.domain.recook.ItemDecision
 import com.onepaper.domain.recook.ProposalDecision
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -51,6 +58,8 @@ class ShelfViewModel @Inject constructor(
     prefs: UserPrefs,
 ) : ViewModel() {
     val books: StateFlow<List<BookEntity>> = library.observeBooks()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+    val shelf: StateFlow<List<ShelfItem>> = library.observeShelfItems()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
     val jobs: StateFlow<List<JobEntity>> = library.observeJobs()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
@@ -105,10 +114,14 @@ class BookViewModel @Inject constructor(
 class ReaderViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val library: LibraryRepository,
+    private val notes: NoteRepository,
     private val store: PrivateStore,
     private val ocr: OcrEngine,
 ) : ViewModel() {
     val editionId: String = checkNotNull(savedStateHandle["editionId"])
+    private val seedQuote: String = savedStateHandle.get<String>("quote").orEmpty()
+    private val seedHref: String = savedStateHandle.get<String>("href").orEmpty()
+    private val seedPage: Int? = savedStateHandle.get<String>("page")?.toIntOrNull()
     val chapters = MutableStateFlow<List<ChapterEntity>>(emptyList())
     val pages = MutableStateFlow<List<PageEntity>>(emptyList())
     val fontSp = MutableStateFlow(18f)
@@ -131,6 +144,8 @@ class ReaderViewModel @Inject constructor(
             chapters.value = library.chaptersOf(editionId)
             pages.value = library.pagesOf(editionId)
             restorePosition()
+            applyJump()
+            persistPosition()
         }
     }
 
@@ -141,6 +156,8 @@ class ReaderViewModel @Inject constructor(
     fun select(quote: String) {
         selected.value = quote
     }
+
+    fun currentLocatorJson(): String = currentLocator()?.let(LocatorCodec::encode).orEmpty()
 
     fun next() {
         if (kind.value == "PDF" || kind.value == "IMAGES") {
@@ -160,38 +177,55 @@ class ReaderViewModel @Inject constructor(
         persistPosition()
     }
 
-    fun highlight() {
-        val quote = selected.value.trim()
+    fun highlight(fromQuote: String? = null) {
+        val quote = (fromQuote ?: selected.value).trim()
+        selected.value = quote
         val book = bookId.value
         if (quote.isBlank() || book == null) {
-            notice.value = "先粘贴或输入一段原文，再记笔记。"
+            notice.value = "先在正文里划选一段，再记笔记。"
             return
         }
         viewModelScope.launch {
-            if (kind.value == "PDF" || kind.value == "IMAGES") {
-                library.addHighlightPdf(book, editionId, pageIndex.value, quote)
-                notice.value = "已按第 ${pageIndex.value + 1} 页记下选区。"
-                persistPosition()
-                return@launch
-            }
-            val chapter = chapters.value.firstOrNull { it.plainText.contains(quote) }
-            if (chapter == null) {
+            if (kind.value != "PDF" && kind.value != "IMAGES" &&
+                chapters.value.none { it.plainText.contains(quote) }
+            ) {
                 notice.value = "选区不在当前抽出文本中，没有记上。"
                 return@launch
             }
-            val progression = chapter.plainText.indexOf(quote).toDouble() / chapter.plainText.length.coerceAtLeast(1)
-            library.addHighlight(book, editionId, chapter.href, quote, progression)
-            val doc = EpubDocument(
-                chapter.contentVersion,
-                chapters.value.map { EpubChapter(it.href, it.contentVersion, it.plainText) },
+            val locator = locatorForQuote(quote)
+            if (locator == null) {
+                notice.value = "选区不在当前抽出文本中，没有记上。"
+                return@launch
+            }
+            when (locator) {
+                is ContentLocator.PdfPageRect -> library.addHighlightPdf(book, editionId, locator.pageIndex, quote)
+                is ContentLocator.Epub -> library.addHighlight(book, editionId, locator.href, quote, locator.progression)
+                else -> Unit
+            }
+            notes.save(
+                id = null,
+                bookId = book,
+                title = quote.take(24).ifBlank { "划选笔记" },
+                userDraft = quote,
+                recognitionDraft = pages.value.getOrNull(pageIndex.value)?.recognitionDraft,
+                imageRelPath = null,
+                sourceBound = true,
+                locatorJson = LocatorCodec.encode(locator),
             )
-            val found = LocatorResolver().resolveEpub(
-                doc,
-                ContentLocator.Epub(chapter.href, progression, TextQuote(quote)),
-            )
-            stale.value = found !is com.onepaper.domain.citation.ResolveResult.Found || found.stale
+            if (locator is ContentLocator.Epub) {
+                val doc = EpubDocument(
+                    chapters.value.getOrNull(chapterIndex.value)?.contentVersion ?: "v1",
+                    chapters.value.map { EpubChapter(it.href, it.contentVersion, it.plainText) },
+                )
+                val found = LocatorResolver().resolveEpub(doc, locator)
+                stale.value = found !is com.onepaper.domain.citation.ResolveResult.Found || found.stale
+            }
             jumpQuote.value = quote
-            notice.value = "已记下选区。"
+            notice.value = if (kind.value == "PDF" || kind.value == "IMAGES") {
+                "已按第 ${pageIndex.value + 1} 页记下选区。"
+            } else {
+                "已记下选区。"
+            }
             persistPosition()
         }
     }
@@ -229,12 +263,7 @@ class ReaderViewModel @Inject constructor(
 
     private fun persistPosition() {
         viewModelScope.launch {
-            val locator = if (kind.value == "PDF" || kind.value == "IMAGES") {
-                ContentLocator.PdfPageRect(pageIndex.value, 0.0, 0.0, 1.0, 1.0, TextQuote(selected.value))
-            } else {
-                val chapter = chapters.value.getOrNull(chapterIndex.value) ?: return@launch
-                ContentLocator.Epub(chapter.href, 0.0, TextQuote(selected.value))
-            }
+            val locator = currentLocator() ?: return@launch
             library.savePosition(editionId, locator)
         }
     }
@@ -250,6 +279,41 @@ class ReaderViewModel @Inject constructor(
                 }
                 else -> Unit
             }
+        }
+    }
+
+    private fun applyJump() {
+        if (seedHref.isNotBlank()) {
+            val idx = chapters.value.indexOfFirst { it.href == seedHref }
+            if (idx >= 0) chapterIndex.value = idx
+        }
+        seedPage?.let { pageIndex.value = it.coerceAtLeast(0) }
+        if (seedQuote.isNotBlank()) {
+            selected.value = seedQuote
+            jumpQuote.value = seedQuote
+            notice.value = "已跳到引用位置。"
+        }
+    }
+
+    private fun currentLocator(): ContentLocator? = locatorForQuote(selected.value)
+
+    private fun locatorForQuote(quote: String): ContentLocator? {
+        return if (kind.value == "PDF" || kind.value == "IMAGES") {
+            ContentLocator.PdfPageRect(pageIndex.value, 0.0, 0.0, 1.0, 1.0, TextQuote(quote))
+        } else {
+            val chapter = chapters.value.firstOrNull { quote.isNotBlank() && it.plainText.contains(quote) }
+                ?: chapters.value.getOrNull(chapterIndex.value)
+                ?: return null
+            val count = chapters.value.size.coerceAtLeast(1)
+            val chapterPos = chapters.value.indexOf(chapter).coerceAtLeast(0)
+            val inChapter = if (quote.isBlank()) {
+                0.5
+            } else {
+                chapter.plainText.indexOf(quote).coerceAtLeast(0).toDouble() /
+                    chapter.plainText.length.coerceAtLeast(1)
+            }
+            val progression = ((chapterPos + inChapter) / count.toDouble()).coerceIn(0.0, 1.0)
+            ContentLocator.Epub(chapter.href, progression, TextQuote(quote))
         }
     }
 }
@@ -345,14 +409,22 @@ class RecookViewModel @Inject constructor(
 class CompanionVm @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val companion: CompanionRepository,
+    prefs: UserPrefs,
     secrets: SecretStore,
 ) : ViewModel() {
     val bookId: String = checkNotNull(savedStateHandle["bookId"])
     val seedQuote: String = savedStateHandle.get<String>("quote").orEmpty()
+    val seedLocator: String = savedStateHandle.get<String>("locator").orEmpty()
+    val seedEditionId: String = savedStateHandle.get<String>("editionId").orEmpty()
     val conversationId = MutableStateFlow<String?>(null)
     val messages = MutableStateFlow<List<MessageEntity>>(emptyList())
     val usingDeepSeek = MutableStateFlow(secrets.hasDeepSeekKey())
-    val offline = MutableStateFlow(true)
+    val uploadPages = prefs.uploadPagesAllowed
+        .stateIn(viewModelScope, SharingStarted.Eagerly, false)
+    val busy = MutableStateFlow(false)
+    val streaming = MutableStateFlow("")
+    val notice = MutableStateFlow<String?>(null)
+    private var askJob: Job? = null
 
     init {
         viewModelScope.launch {
@@ -363,7 +435,35 @@ class CompanionVm @Inject constructor(
     }
 
     fun ask(question: String, quote: String?) {
-        viewModelScope.launch { companion.ask(bookId, question, quote) }
+        if (question.isBlank() || busy.value) return
+        askJob?.cancel()
+        askJob = viewModelScope.launch {
+            busy.value = true
+            streaming.value = ""
+            notice.value = null
+            try {
+                companion.ask(
+                    bookId = bookId,
+                    question = question,
+                    selectedQuote = quote,
+                    locatorJson = seedLocator.ifBlank { null },
+                    editionId = seedEditionId.ifBlank { null },
+                    onDelta = { streaming.value = it },
+                )
+            } catch (cancelled: CancellationException) {
+                notice.value = "已取消本次提问。阅读和笔记仍可用。"
+                throw cancelled
+            } catch (error: Throwable) {
+                notice.value = error.message ?: "提问失败。"
+            } finally {
+                busy.value = false
+                streaming.value = ""
+            }
+        }
+    }
+
+    fun cancelAsk() {
+        askJob?.cancel()
     }
 }
 
@@ -371,14 +471,25 @@ class CompanionVm @Inject constructor(
 class NoteViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val notes: NoteRepository,
+    private val library: LibraryRepository,
 ) : ViewModel() {
     val noteId: String? = savedStateHandle.get<String>("noteId")?.takeIf { it != "new" }
     val note = MutableStateFlow<NoteEntity?>(null)
+    val jumpEditionId = MutableStateFlow<String?>(null)
+    val jump = MutableStateFlow<ReaderJump?>(null)
     private val persistedId = MutableStateFlow(noteId)
 
     init {
         viewModelScope.launch {
-            if (noteId != null) note.value = notes.get(noteId)
+            if (noteId != null) {
+                val loaded = notes.get(noteId)
+                note.value = loaded
+                jump.value = LocatorJump.fromJson(loaded?.locatorJson)
+                val bookId = loaded?.bookId
+                if (bookId != null) {
+                    jumpEditionId.value = library.editionsOf(bookId).firstOrNull()?.id
+                }
+            }
         }
     }
 
@@ -480,6 +591,7 @@ class ImportViewModel @Inject constructor(
 class CaptureViewModel @Inject constructor(
     private val library: LibraryRepository,
     private val projects: ProjectRepository,
+    val bitmaps: CaptureBitmap,
 ) : ViewModel() {
     val last = MutableStateFlow<ImportOutcome?>(null)
 
@@ -507,6 +619,24 @@ class BackupViewModel @Inject constructor(
             val file = backup.exportJson()
             filePath.value = file.absolutePath
             message.value = "已写出备份（不含 token）：${file.name}"
+        }
+    }
+
+    fun exportToUri(resolver: ContentResolver, uri: Uri) {
+        viewModelScope.launch {
+            runCatching {
+                backup.exportToUri(resolver, uri)
+                message.value = "已导出到所选文件（不含 DeepSeek Key）。"
+            }.onFailure { message.value = it.message }
+        }
+    }
+
+    fun restoreFromUri(resolver: ContentResolver, uri: Uri) {
+        viewModelScope.launch {
+            runCatching {
+                val manifest = backup.restoreFromUri(resolver, uri)
+                message.value = "已从文件恢复 ${manifest.bookCount} 本书、${manifest.noteCount} 则笔记。"
+            }.onFailure { message.value = it.message }
         }
     }
 

@@ -36,6 +36,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
@@ -55,7 +56,9 @@ import com.onepaper.app.ui.components.QuietButton
 import com.onepaper.app.ui.components.QuietField
 import com.onepaper.app.ui.components.QuietIconButton
 import com.onepaper.app.ui.components.QuietNavBar
+import com.onepaper.app.ui.components.QuietNavRail
 import com.onepaper.app.ui.components.QuietProgress
+import com.onepaper.app.ui.reader.SelectableReaderText
 import com.onepaper.app.ui.components.QuietTone
 import com.onepaper.app.ui.components.QuietTopBar
 import com.onepaper.app.ui.components.SectionTitle
@@ -115,6 +118,7 @@ fun OnboardingScreen(
 @Composable
 fun HomePager(
     onOpenBook: (String) -> Unit,
+    onContinueRead: (String) -> Unit,
     onImport: () -> Unit,
     onCapture: () -> Unit,
     onOpenProject: (String) -> Unit,
@@ -125,17 +129,26 @@ fun HomePager(
     modifier: Modifier = Modifier,
 ) {
     var tab by remember { mutableIntStateOf(0) }
-    PaperScaffold(
-        bottomBar = { QuietNavBar(selected = tab, onSelect = { tab = it }) },
-        contentWindowInsets = WindowInsets(0, 0, 0, 0),
-    ) { padding ->
-        Box(modifier.padding(padding).fillMaxSize()) {
-            when (tab) {
-                0 -> ShelfPane(Modifier.fillMaxSize(), onOpenBook, onImport, onCapture, onTask)
-                1 -> PapersPane(Modifier.fillMaxSize(), onOpenProject, onOpenNote)
-                2 -> CanteenPane(Modifier.fillMaxSize(), onBackup)
-                else -> MePane(Modifier.fillMaxSize(), onSettings, onBackup, onOpenNote)
-            }
+    val wide = LocalConfiguration.current.screenWidthDp >= 600
+    val pane: @Composable () -> Unit = {
+        when (tab) {
+            0 -> ShelfPane(Modifier.fillMaxSize(), onOpenBook, onContinueRead, onImport, onCapture, onTask)
+            1 -> PapersPane(Modifier.fillMaxSize(), onOpenProject, onOpenNote)
+            2 -> CanteenPane(Modifier.fillMaxSize(), onBackup)
+            else -> MePane(Modifier.fillMaxSize(), onSettings, onBackup, onOpenNote)
+        }
+    }
+    if (wide) {
+        Row(modifier.fillMaxSize()) {
+            QuietNavRail(selected = tab, onSelect = { tab = it })
+            Box(Modifier.weight(1f).fillMaxSize()) { pane() }
+        }
+    } else {
+        PaperScaffold(
+            bottomBar = { QuietNavBar(selected = tab, onSelect = { tab = it }) },
+            contentWindowInsets = WindowInsets(0, 0, 0, 0),
+        ) { padding ->
+            Box(modifier.padding(padding).fillMaxSize()) { pane() }
         }
     }
 }
@@ -144,12 +157,13 @@ fun HomePager(
 private fun ShelfPane(
     modifier: Modifier,
     onOpenBook: (String) -> Unit,
+    onContinueRead: (String) -> Unit,
     onImport: () -> Unit,
     onCapture: () -> Unit,
     onTask: (String) -> Unit,
     vm: ShelfViewModel = hiltViewModel(),
 ) {
-    val books by vm.books.collectAsStateWithLifecycle()
+    val shelf by vm.shelf.collectAsStateWithLifecycle()
     val jobs by vm.jobs.collectAsStateWithLifecycle()
     val hits by vm.hits.collectAsStateWithLifecycle()
     val query by vm.query.collectAsStateWithLifecycle()
@@ -201,21 +215,23 @@ private fun ShelfPane(
                 )
             }
         }
-        if (books.isEmpty()) {
+        if (shelf.isEmpty()) {
             EmptyState("还没有书", "导入 EPUB / PDF / 文本，或拍摄书页。不同文件不会按书名合并。", glyph = ZenGlyph.Books)
         } else {
             LazyColumn(
                 contentPadding = androidx.compose.foundation.layout.PaddingValues(16.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                items(books, key = { it.id }) { book ->
+                items(shelf, key = { it.book.id }) { item ->
                     BookSpineCard(
-                        title = book.title,
+                        title = item.book.title,
                         subtitle = listOfNotNull(
-                            book.author.takeIf { it.isNotBlank() },
-                            if (book.coverage == "EXCERPT") "摘录" else "全书",
+                            item.book.author.takeIf { it.isNotBlank() },
+                            if (item.book.coverage == "EXCERPT") "摘录" else "全书",
                         ).joinToString(" · "),
-                        onClick = { onOpenBook(book.id) },
+                        progressLabel = item.progress.label,
+                        onClick = { onOpenBook(item.book.id) },
+                        onContinue = item.editionId?.let { id -> { onContinueRead(id) } },
                     )
                 }
             }
@@ -373,7 +389,7 @@ fun BookScreen(
 
 @Composable
 fun ReaderScreen(
-    onCompanion: (String, String) -> Unit,
+    onCompanion: (bookId: String, quote: String, locator: String, editionId: String) -> Unit,
     onBack: () -> Unit,
     vm: ReaderViewModel = hiltViewModel(),
 ) {
@@ -388,9 +404,14 @@ fun ReaderScreen(
     val pageIndex by vm.pageIndex.collectAsStateWithLifecycle()
     val chapterIndex by vm.chapterIndex.collectAsStateWithLifecycle()
     val notice by vm.notice.collectAsStateWithLifecycle()
+    val jumpQuote by vm.jumpQuote.collectAsStateWithLifecycle()
     val currentChapter = chapters.getOrNull(chapterIndex)
     val currentPage = pages.getOrNull(pageIndex)
     val scheme = MaterialTheme.colorScheme
+    val ask: (String) -> Unit = { quote ->
+        vm.select(quote)
+        bookId?.let { onCompanion(it, quote, vm.currentLocatorJson(), vm.editionId) }
+    }
     PaperScaffold(title = "阅读", onBack = onBack) { padding ->
         Column(
             Modifier
@@ -416,20 +437,40 @@ fun ReaderScreen(
                 Banner("PDF 为固定版式预览。文本选择/搜索走 OCR 层，不假装可重排。")
                 Text("第 ${pageIndex + 1} / ${pages.size.coerceAtLeast(1)} 页", style = MaterialTheme.typography.labelMedium)
                 pdfPath?.let { PdfPreview(it, pageIndex) }
-                currentPage?.recognitionDraft?.takeIf { it.isNotBlank() }?.let {
-                    Text("识别稿：$it", style = MaterialTheme.typography.bodySmall)
-                }
+                currentPage?.recognitionDraft?.takeIf { it.isNotBlank() }?.let { draft ->
+                    Text("识别稿（划选记笔记 / 问搭子）", style = MaterialTheme.typography.labelMedium)
+                    SelectableReaderText(
+                        text = draft,
+                        fontSp = font,
+                        highlight = jumpQuote,
+                        onNote = { vm.highlight(it) },
+                        onAsk = ask,
+                    )
+                } ?: Text("先识别本页，再在识别稿上划选。图像本身不能当可重排文本。", style = MaterialTheme.typography.bodySmall)
             } else if (kind == "IMAGES") {
                 Banner("扫描页按图像阅读。印刷 OCR 写识别稿，不当原文。")
                 Text("第 ${pageIndex + 1} / ${pages.size.coerceAtLeast(1)} 页", style = MaterialTheme.typography.labelMedium)
                 currentPage?.imageRelPath?.let { ImagePreview(it) }
-                currentPage?.recognitionDraft?.takeIf { it.isNotBlank() }?.let {
-                    Text("识别稿：$it", style = MaterialTheme.typography.bodySmall)
-                }
+                currentPage?.recognitionDraft?.takeIf { it.isNotBlank() }?.let { draft ->
+                    Text("识别稿（划选记笔记 / 问搭子）", style = MaterialTheme.typography.labelMedium)
+                    SelectableReaderText(
+                        text = draft,
+                        fontSp = font,
+                        highlight = jumpQuote,
+                        onNote = { vm.highlight(it) },
+                        onAsk = ask,
+                    )
+                } ?: Text("先识别本页，再在识别稿上划选。", style = MaterialTheme.typography.bodySmall)
             } else {
                 currentChapter?.let { chapter ->
                     Text("${chapter.title} · ${chapterIndex + 1}/${chapters.size.coerceAtLeast(1)}", style = MaterialTheme.typography.titleMedium)
-                    Text(chapter.plainText, fontSize = font.sp, lineHeight = (font * 1.7f).sp, modifier = Modifier.padding(vertical = 8.dp))
+                    SelectableReaderText(
+                        text = chapter.plainText,
+                        fontSp = font,
+                        highlight = jumpQuote,
+                        onNote = { vm.highlight(it) },
+                        onAsk = ask,
+                    )
                 } ?: Text("这一版没有可抽出的文本。")
             }
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
@@ -439,15 +480,18 @@ fun ReaderScreen(
             if (kind == "PDF" || kind == "IMAGES") {
                 QuietButton("识别本页（印刷 OCR）", vm::ocrCurrentPage, Modifier.fillMaxWidth(), glyph = ZenGlyph.Scan)
             }
+            if (selected.isNotBlank()) {
+                Text("当前选区：$selected", style = MaterialTheme.typography.bodySmall, color = scheme.onSurfaceVariant)
+            }
             QuietField(
                 value = selected,
                 onValueChange = vm::select,
-                label = "选区（粘贴或输入原文片段）",
+                label = "选区（长按正文划选为主；此处仅手改）",
                 modifier = Modifier.fillMaxWidth(),
             )
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.horizontalScroll(rememberScrollState())) {
                 QuietButton("记笔记", { vm.highlight() }, glyph = ZenGlyph.Note)
-                QuietButton("解释 / 提问", { bookId?.let { onCompanion(it, selected) } }, glyph = ZenGlyph.Chat)
+                QuietButton("解释 / 提问", { bookId?.let { ask(selected) } }, glyph = ZenGlyph.Chat)
             }
             LayerChip(KnowledgeLayer.SOURCE)
         }
@@ -546,17 +590,14 @@ fun CaptureScreen(
     vm: CaptureViewModel = hiltViewModel(),
 ) {
     val last by vm.last.collectAsStateWithLifecycle()
-    val picker = rememberLauncherForActivityResult(ActivityResultContracts.GetMultipleContents()) { uris ->
-        if (uris.isNotEmpty()) vm.importImages(uris)
-    }
     PaperScaffold(title = "自炊台", onBack = onDone) { padding ->
         Column(
             Modifier.padding(padding).padding(16.dp).verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             ZenMark(ZenGlyph.Camera, Modifier.height(72.dp).fillMaxWidth())
-            Banner("拒相机时仍可用相册。选中的页会复制进私有目录并建成摘录书。自动翻页检测未承诺。")
-            QuietButton("从相册选页", { picker.launch("image/*") }, Modifier.fillMaxWidth(), glyph = ZenGlyph.Camera, tone = QuietTone.Ink)
+            Banner("拒相机时仍可用相册。拍照或单张相册会先裁切/旋转，再复制进私有目录建成摘录书。自动翻页检测未承诺。")
+            CaptureStudio(bitmaps = vm.bitmaps, onImported = vm::importImages)
             QuietButton("改为导入文件", onImport, Modifier.fillMaxWidth(), glyph = ZenGlyph.Import)
             last?.let { outcome ->
                 if (outcome.rejectedReason != null) {
@@ -620,6 +661,12 @@ fun SettingsScreen(onBack: () -> Unit, vm: SettingsViewModel = hiltViewModel()) 
                 Modifier.fillMaxWidth(),
                 glyph = ZenGlyph.Brush,
             )
+            Kicker("真机门禁")
+            Banner("下列条目尚未在目标真机关闭。模拟器或本机构建不能冒充已过。")
+            Text("Pixel 7：未在本机实测。", style = MaterialTheme.typography.bodySmall, color = scheme.onSurfaceVariant)
+            Text("OPPO 小折叠 / 外屏：未在本机实测。宽屏（≥600dp）改用侧栏，不能代替折叠真机。", style = MaterialTheme.typography.bodySmall, color = scheme.onSurfaceVariant)
+            Text("Readium：本版 EPUB 走抽出文本 + Locator，未接官方 Navigator。", style = MaterialTheme.typography.bodySmall, color = scheme.onSurfaceVariant)
+            Text("ML Kit 无 GMS：bundled 中文模型已接入，无 GMS 机型准确率未测。", style = MaterialTheme.typography.bodySmall, color = scheme.onSurfaceVariant)
             Text("本地占用约 ${usage / 1024} KB", style = MaterialTheme.typography.bodySmall, color = scheme.onSurfaceVariant)
             Text("一纸书煲 / OnePaper  0.1.0-delivery", style = MaterialTheme.typography.bodySmall, color = scheme.onSurfaceVariant)
             Text("无 Key 时阅读、笔记、导出仍可用。印刷 OCR 走端侧 ML Kit。", style = MaterialTheme.typography.bodySmall, color = scheme.onSurfaceVariant)
@@ -651,14 +698,11 @@ fun BackupScreen(onBack: () -> Unit, vm: BackupViewModel = hiltViewModel()) {
     val filePath by vm.filePath.collectAsStateWithLifecycle()
     var restoreText by remember { mutableStateOf("") }
     val context = LocalContext.current
+    val createDoc = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { uri ->
+        if (uri != null) vm.exportToUri(context.contentResolver, uri)
+    }
     val restorePicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
-        if (uri == null) return@rememberLauncherForActivityResult
-        runCatching {
-            context.contentResolver.openInputStream(uri)?.bufferedReader()?.use { it.readText() }
-        }.getOrNull()?.let { raw ->
-            restoreText = raw.take(8_000)
-            vm.restore(raw)
-        }
+        if (uri != null) vm.restoreFromUri(context.contentResolver, uri)
     }
     PaperScaffold(title = "备份恢复", onBack = onBack) { padding ->
         Column(
@@ -666,30 +710,38 @@ fun BackupScreen(onBack: () -> Unit, vm: BackupViewModel = hiltViewModel()) {
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             ZenMark(ZenGlyph.Stack, Modifier.height(72.dp).fillMaxWidth())
-            Text("无账号可用。备份不含 DeepSeek Key / token。", style = MaterialTheme.typography.bodyMedium)
-            QuietButton("导出完整备份", vm::exportLibrary, Modifier.fillMaxWidth(), glyph = ZenGlyph.Stack, tone = QuietTone.Ink)
-            if (filePath != null) {
-                QuietButton(
-                    "系统分享备份文件",
-                    { ExportShare.sendFile(context, File(filePath!!), "application/json", "分享备份") },
-                    Modifier.fillMaxWidth(),
-                    glyph = ZenGlyph.Share,
-                )
-            }
+            Text("无账号可用。主路径是导出/导入文件。备份不含 DeepSeek Key / token。", style = MaterialTheme.typography.bodyMedium)
+            QuietButton(
+                "导出到文件",
+                { createDoc.launch("onepaper-backup.json") },
+                Modifier.fillMaxWidth(),
+                glyph = ZenGlyph.Stack,
+                tone = QuietTone.Ink,
+            )
             QuietButton(
                 "从文件恢复",
                 { restorePicker.launch(arrayOf("application/json", "text/*", "*/*")) },
                 Modifier.fillMaxWidth(),
                 glyph = ZenGlyph.Import,
             )
+            QuietButton("另存到应用缓存（再分享）", vm::exportLibrary, Modifier.fillMaxWidth(), glyph = ZenGlyph.Share)
+            if (filePath != null) {
+                QuietButton(
+                    "系统分享缓存备份",
+                    { ExportShare.sendFile(context, File(filePath!!), "application/json", "分享备份") },
+                    Modifier.fillMaxWidth(),
+                    glyph = ZenGlyph.Share,
+                )
+            }
+            Text("高级：粘贴 JSON", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             QuietField(
                 value = restoreText,
                 onValueChange = { restoreText = it },
-                label = "粘贴备份 JSON 预览后恢复",
-                modifier = Modifier.fillMaxWidth().height(160.dp),
-                minLines = 6,
+                label = "仅作应急，不是主路径",
+                modifier = Modifier.fillMaxWidth().height(120.dp),
+                minLines = 4,
             )
-            QuietButton("预览并恢复", { vm.restore(restoreText) }, Modifier.fillMaxWidth())
+            QuietButton("从粘贴恢复", { vm.restore(restoreText) }, Modifier.fillMaxWidth(), tone = QuietTone.Ghost)
             message?.let { Banner(it) }
         }
     }

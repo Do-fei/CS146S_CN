@@ -32,7 +32,10 @@ import com.onepaper.domain.model.Coverage
 import com.onepaper.domain.model.SourceKind
 import com.onepaper.domain.search.ChineseNgram
 import dagger.hilt.android.qualifiers.ApplicationContext
+import com.onepaper.domain.citation.ProgressSnapshot
+import com.onepaper.domain.citation.ReadingProgress
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.combine
 import java.util.UUID
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -41,6 +44,12 @@ data class ImportOutcome(
     val bookId: String,
     val editionId: String,
     val rejectedReason: String? = null,
+)
+
+data class ShelfItem(
+    val book: BookEntity,
+    val editionId: String?,
+    val progress: ProgressSnapshot,
 )
 
 @Singleton
@@ -59,6 +68,24 @@ class LibraryRepository @Inject constructor(
 
     fun observeBooks(): Flow<List<BookEntity>> = books.observeActive()
     fun observeJobs(): Flow<List<JobEntity>> = jobs.observeAll()
+    fun observeEditions(): Flow<List<EditionEntity>> = editions.observeAll()
+    fun observePositions(): Flow<List<ReadingPositionEntity>> = positions.observeAll()
+
+    fun observeShelfItems(): Flow<List<ShelfItem>> = combine(
+        books.observeActive(),
+        editions.observeAll(),
+        positions.observeAll(),
+    ) { bookList, editionList, positionList ->
+        bookList.map { book ->
+            val edition = editionList.firstOrNull { it.bookId == book.id }
+            val position = edition?.let { item -> positionList.firstOrNull { it.editionId == item.id } }
+            val locator = position?.locatorJson?.let { raw ->
+                runCatching { LocatorCodec.decode(raw) }.getOrNull()
+            }
+            val total = edition?.pageCount?.takeIf { it > 0 } ?: 1
+            ShelfItem(book, edition?.id, ReadingProgress.of(locator, total))
+        }
+    }
 
     suspend fun book(id: String) = books.get(id)
     suspend fun editionsOf(bookId: String) = editions.forBook(bookId)

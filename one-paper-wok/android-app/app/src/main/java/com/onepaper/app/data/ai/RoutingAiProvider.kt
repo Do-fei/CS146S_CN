@@ -20,15 +20,32 @@ class RoutingAiProvider @Inject constructor(
     override suspend fun answer(request: CompanionRequest): CompanionAnswer {
         if (!secrets.hasDeepSeekKey()) return fake.answer(request)
         return runCatching { deepSeek.answer(request) }
-            .getOrElse { error ->
-                CompanionAnswer(
-                    text = "DeepSeek 不可用：${safeMessage(error)}。阅读和笔记仍可继续。",
-                    citations = request.evidence,
-                    insufficientEvidence = true,
-                    refusedWholeBookConclusion = false,
-                )
-            }
+            .getOrElse { error -> failure(request, error) }
     }
+
+    override suspend fun answerStreaming(
+        request: CompanionRequest,
+        onDelta: (String) -> Unit,
+    ): CompanionAnswer {
+        if (!secrets.hasDeepSeekKey()) return fake.answerStreaming(request, onDelta)
+        return try {
+            deepSeek.answerStreaming(request, onDelta)
+        } catch (cancelled: kotlinx.coroutines.CancellationException) {
+            throw cancelled
+        } catch (error: Throwable) {
+            val answer = failure(request, error)
+            onDelta(answer.text)
+            answer
+        }
+    }
+
+    private fun failure(request: CompanionRequest, error: Throwable): CompanionAnswer =
+        CompanionAnswer(
+            text = "DeepSeek 不可用：${safeMessage(error)}。阅读和笔记仍可继续。",
+            citations = request.evidence,
+            insufficientEvidence = true,
+            refusedWholeBookConclusion = false,
+        )
 
     override suspend fun proposeRecook(base: ProjectSnapshot, userNotes: List<String>): ChangeProposal {
         if (!secrets.hasDeepSeekKey()) return fake.proposeRecook(base, userNotes)

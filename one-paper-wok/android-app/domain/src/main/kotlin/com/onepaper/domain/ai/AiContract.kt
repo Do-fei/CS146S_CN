@@ -35,6 +35,10 @@ data class CompanionAnswer(
 
 interface AiProvider {
     suspend fun answer(request: CompanionRequest): CompanionAnswer
+    suspend fun answerStreaming(
+        request: CompanionRequest,
+        onDelta: (String) -> Unit,
+    ): CompanionAnswer = answer(request).also { onDelta(it.text) }
     suspend fun proposeRecook(base: ProjectSnapshot, userNotes: List<String>): ChangeProposal
 }
 
@@ -65,12 +69,25 @@ class FakeAiProvider : AiProvider {
             )
         }
         val quote = request.evidence.first().quote
+        val text = "就已导入范围来看：「$quote」——这是依据引用的解释，不是全书结论。"
         return CompanionAnswer(
-            text = "就已导入范围来看：「$quote」——这是依据引用的解释，不是全书结论。",
+            text = text,
             citations = request.evidence,
             insufficientEvidence = false,
             refusedWholeBookConclusion = false,
         )
+    }
+
+    override suspend fun answerStreaming(
+        request: CompanionRequest,
+        onDelta: (String) -> Unit,
+    ): CompanionAnswer {
+        val answer = answer(request)
+        if (answer.text.isEmpty()) return answer
+        val mid = (answer.text.length / 2).coerceAtLeast(1)
+        onDelta(answer.text.take(mid))
+        onDelta(answer.text)
+        return answer
     }
 
     override suspend fun proposeRecook(base: ProjectSnapshot, userNotes: List<String>): ChangeProposal {
