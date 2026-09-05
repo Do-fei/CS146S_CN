@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="paper">#FAF7F1</color>
+    <color name="paper">#F7F3EA</color>
     <color name="icon_paper">#F3EFE6</color>
-    <color name="clay">#BD593B</color>
-    <color name="ink">#302D29</color>
+    <color name="clay">#C45C4A</color>
+    <color name="ink">#2C2925</color>
 </resources>

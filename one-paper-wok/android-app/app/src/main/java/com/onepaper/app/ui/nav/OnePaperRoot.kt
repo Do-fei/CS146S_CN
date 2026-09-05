@@ -2,11 +2,13 @@ package com.onepaper.app.ui.nav
 
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import com.onepaper.app.ui.graphics.ZenGlyph
+import com.onepaper.app.ui.graphics.ZenMark
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavType
@@ -39,7 +41,7 @@ fun OnePaperRoot(modifier: Modifier = Modifier) {
     val onboarded by shelf.onboardingDone.collectAsStateWithLifecycle()
     if (onboarded == null) {
         Box(modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            CircularProgressIndicator()
+            ZenMark(ZenGlyph.Enso, modifier = Modifier.fillMaxSize(0.22f), tint = MaterialTheme.colorScheme.outline)
         }
         return
     }
