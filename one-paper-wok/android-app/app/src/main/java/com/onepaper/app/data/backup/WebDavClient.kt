@@ -78,10 +78,10 @@ class WebDavClient @Inject constructor(
     }
 
     private fun targetUrl(): String {
-        val base = secrets.webDavUrl() ?: error("还没有填写 WebDAV 地址。")
+        val base = secrets.webDavUrl() ?: error("还没有填写网盘地址。")
         val user = secrets.webDavUser()
         val pass = secrets.webDavPassword()
-        if (user.isNullOrBlank() || pass.isNullOrBlank()) error("WebDAV 用户名和密码都要填。密码用应用专用密码，不是登录密码。")
+        if (user.isNullOrBlank() || pass.isNullOrBlank()) error("用户名和密码都要填。密码用应用专用密码。")
         return WebDavPath.resolve(base, secrets.webDavPath())
     }
 

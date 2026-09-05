@@ -25,7 +25,7 @@ class TtsPolicyTest {
     fun scannedPageUsesDraftAndSaysSo() {
         val passage = TtsPolicy.passage("IMAGES", null, null, "识别出来的字")
         assertEquals(KnowledgeLayer.AI, passage?.layer)
-        assertTrue(passage?.label?.contains("识别稿") == true)
+        assertTrue(passage?.label?.contains("识别") == true)
     }
 
     @Test

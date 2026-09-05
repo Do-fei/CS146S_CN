@@ -7,5 +7,5 @@ object PdfBudget {
     fun canExtractInMemory(sizeBytes: Long): Boolean = sizeBytes in 1..MAX_EXTRACT_BYTES
 
     fun tooLargeMessage(): String =
-        "这份 PDF 超过 32MB，本机未整本抽文本层。可在阅读器里按页识别，不当原文。"
+        "文件比较大，按页识别。"
 }

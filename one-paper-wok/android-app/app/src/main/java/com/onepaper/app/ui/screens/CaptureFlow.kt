@@ -99,7 +99,7 @@ fun CaptureStudio(
             QuietButton("从相册选页", { picker.launch("image/*") }, Modifier.fillMaxWidth(), glyph = ZenGlyph.Scan)
             cameraError?.let { Banner(it) }
             if (!hasCamera) {
-                Banner("未授权相机时仍可用相册。单张会进入裁切/旋转；多选直接收入。")
+                Banner("也可以从相册选。")
             }
         }
         CaptureStage.Camera -> CameraPane(
@@ -164,7 +164,7 @@ private fun CropRotatePane(
     }
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Text("裁切与旋转", style = MaterialTheme.typography.titleMedium)
-        Text("先转到正向，再收窄四边。框是比例，不跟像素走。", style = MaterialTheme.typography.bodySmall)
+        Text("转到正向，再裁切。", style = MaterialTheme.typography.bodySmall)
         val shown = preview ?: source
         if (shown != null) {
             Image(
@@ -187,7 +187,7 @@ private fun CropRotatePane(
         CropSlider("下边", bottom) { bottom = it }
         error?.let { Banner(it) }
         QuietButton(
-            "确认并收入自炊页",
+            "确认",
             {
                 val cropped = preview ?: source
                 if (cropped == null) {

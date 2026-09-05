@@ -10,6 +10,6 @@ class PdfBudgetTest {
         assertFalse(PdfBudget.canExtractInMemory(0))
         assertFalse(PdfBudget.canExtractInMemory(PdfBudget.MAX_EXTRACT_BYTES + 1))
         assertTrue(PdfBudget.canExtractInMemory(1024))
-        assertTrue(PdfBudget.tooLargeMessage().contains("32MB"))
+        assertTrue(PdfBudget.tooLargeMessage().contains("比较大"))
     }
 }

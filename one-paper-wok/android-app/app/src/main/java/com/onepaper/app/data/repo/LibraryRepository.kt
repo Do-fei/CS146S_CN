@@ -105,8 +105,8 @@ class LibraryRepository @Inject constructor(
         if (books.activeCount() > 0) return null
         val text = context.assets.open("samples/excerpt.txt").bufferedReader().use { it.readText() }
         return importPlainText(
-            title = "一纸书煲 · 授权摘录样本",
-            author = "项目组",
+            title = "说明书",
+            author = "",
             body = text,
             coverage = Coverage.EXCERPT,
             originalName = "excerpt.txt",
@@ -130,7 +130,7 @@ class LibraryRepository @Inject constructor(
         val incoming = ImportType.resolve(context, uri, displayName)
         val dest = context.contentResolver.openInputStream(uri)?.use { input ->
             store.copyIncoming(editionId, incoming.displayName, input)
-        } ?: return ImportOutcome("", editionId, "无法读取文件")
+        } ?: return ImportOutcome("", editionId, "无法读取这份文件。")
 
         state = state.copy(durableFilesPresent = true)
         persistJob(state, null, "import")
@@ -239,16 +239,16 @@ class LibraryRepository @Inject constructor(
         editionId: String,
     ): ImportOutcome {
         if (EpubTextExtractor.isEncrypted(file)) {
-            return ImportOutcome("", editionId, "拒绝绕过 DRM / 加密 EPUB")
+            return ImportOutcome("", editionId, "加密的书加不进来。")
         }
         val extracted = EpubTextExtractor.extract(file)
         if (extracted.isEmpty()) {
-            return ImportOutcome("", editionId, "EPUB 里没有可抽出的文本")
+            return ImportOutcome("", editionId, "这份文件里没有文字。")
         }
         val bookId = UUID.randomUUID().toString()
         val meta = EpubMeta.read(file)
         val title = if (name.contains("onepaper-guide")) {
-            "一纸书煲使用说明书"
+            "说明书"
         } else {
             meta.title?.takeIf { it.isNotBlank() }
                 ?: extracted.first().title.ifBlank { prettyTitle(name, ".epub") }
@@ -291,7 +291,7 @@ class LibraryRepository @Inject constructor(
         editionId: String,
     ): ImportOutcome {
         if (PdfGuard.looksEncrypted(file)) {
-            return ImportOutcome("", editionId, "拒绝绕过加密 PDF")
+            return ImportOutcome("", editionId, "加密的书加不进来。")
         }
         val pageCount = PdfPages.count(file)
         val bookId = UUID.randomUUID().toString()
@@ -343,14 +343,14 @@ class LibraryRepository @Inject constructor(
     suspend fun importBundledEpub(): ImportOutcome {
         val editionId = UUID.randomUUID().toString()
         val dest = openAsset("samples/onepaper-guide.epub", editionId, "onepaper-guide.epub")
-            ?: return ImportOutcome("", editionId, "随包说明书缺失")
+            ?: return ImportOutcome("", editionId, "说明书找不到。")
         return ingestEpub(dest, "onepaper-guide.epub", Coverage.WHOLE_BOOK, markExcerpt = false, editionId)
     }
 
     suspend fun importBundledPdf(): ImportOutcome {
         val editionId = UUID.randomUUID().toString()
         val dest = openAsset("samples/onepaper-sample.pdf", editionId, "onepaper-sample.pdf")
-            ?: return ImportOutcome("", editionId, "随包样页缺失")
+            ?: return ImportOutcome("", editionId, "样页找不到。")
         return ingestPdf(dest, "onepaper-sample.pdf", Coverage.WHOLE_BOOK, markExcerpt = false, editionId)
     }
 
@@ -369,7 +369,7 @@ class LibraryRepository @Inject constructor(
         persistImported(
             bookId = bookId,
             editionId = editionId,
-            title = "自炊页 · ${dests.size} 张",
+            title = "扫描 · ${dests.size} 页",
             author = "",
             coverage = Coverage.EXCERPT,
             kind = SourceKind.IMAGES,
@@ -379,7 +379,7 @@ class LibraryRepository @Inject constructor(
             chapterList = emptyList(),
             pageCount = dests.size,
             coverRelPath = covers.writeBytes(editionId, dests.first().readBytes())
-                ?: covers.fromTitle(editionId, "自炊页 · ${dests.size} 张", ""),
+                ?: covers.fromTitle(editionId, "扫描 · ${dests.size} 页", ""),
         )
         pages.upsertAll(
             dests.mapIndexed { idx, file ->
@@ -610,8 +610,8 @@ class LibraryRepository @Inject constructor(
     private fun prettyTitle(name: String, suffix: String): String {
         val trimmed = name.substringAfterLast('/').removeSuffix(suffix).ifBlank { name }
         return when (trimmed) {
-            "onepaper-sample" -> "一纸书煲 · 随包样页"
-            "onepaper-guide" -> "一纸书煲使用说明书"
+            "onepaper-sample" -> "样页"
+            "onepaper-guide" -> "说明书"
             else -> trimmed
         }
     }

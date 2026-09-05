@@ -47,7 +47,6 @@ import com.onepaper.app.ui.components.Banner
 import com.onepaper.app.ui.components.BookSpineCard
 import com.onepaper.app.ui.components.EmptyState
 import com.onepaper.app.ui.components.Kicker
-import com.onepaper.app.ui.components.LayerChip
 import com.onepaper.app.ui.components.PaperCard
 import com.onepaper.app.ui.components.PaperScaffold
 import com.onepaper.app.ui.components.QuietButton
@@ -75,7 +74,6 @@ import com.onepaper.app.ui.vm.SettingsViewModel
 import com.onepaper.app.ui.vm.ShelfViewModel
 import com.onepaper.app.ui.layout.LocalWindowFit
 import com.onepaper.domain.citation.LocatorJump
-import com.onepaper.domain.model.KnowledgeLayer
 import com.onepaper.domain.search.LibraryHitKind
 import com.onepaper.domain.search.LibrarySearch
 import java.io.File
@@ -102,15 +100,9 @@ fun OnboardingScreen(
                 ZenMark(ZenGlyph.Enso, Modifier.height(168.dp).fillMaxWidth())
                 ZenMark(ZenGlyph.Wok, Modifier.height(88.dp).fillMaxWidth(), tint = MaterialTheme.colorScheme.onSurface)
             }
-            Kicker("文火")
-            Text("把书读薄，把思考养厚", style = MaterialTheme.typography.headlineSmall)
-            Text(
-                "先在这台设备建立书房。无登录、不同步。换机请先备份。",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
+            Text("导入一本书，开始读。", style = MaterialTheme.typography.bodyLarge)
             QuietButton("导入电子书", { vm.done(); onImport() }, Modifier.fillMaxWidth(), glyph = ZenGlyph.Import, tone = QuietTone.Ink)
-            QuietButton("拍摄纸书", { vm.done(); onCapture() }, Modifier.fillMaxWidth(), glyph = ZenGlyph.Camera)
+            QuietButton("拍摄", { vm.done(); onCapture() }, Modifier.fillMaxWidth(), glyph = ZenGlyph.Camera)
             QuietButton("稍后", { vm.done(); onLater() }, Modifier.fillMaxWidth(), tone = QuietTone.Ghost)
             Spacer(Modifier.height(12.dp))
         }
@@ -191,21 +183,13 @@ private fun ShelfPane(
                 QuietIconButton(ZenGlyph.Plus, "导入", onImport)
             },
         )
-        if (LocalWindowFit.current.coverLike) {
-            Text(
-                "外屏紧凑排版（按最小宽度判断，未在折叠真机关闭门禁）",
-                modifier = Modifier.padding(horizontal = LocalWindowFit.current.pagePad),
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
         QuietField(
             value = query,
             onValueChange = vm::search,
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 16.dp),
-            label = "库内检索（本机，不是向量）",
+            label = "搜索",
         )
         if (jobs.any { it.status != "COMPLETED" }) {
             jobs.take(2).forEach { job ->
@@ -218,9 +202,9 @@ private fun ShelfPane(
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         ZenMark(ZenGlyph.Flame, Modifier.height(28.dp).padding(end = 4.dp), tint = MaterialTheme.colorScheme.tertiary)
                         Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                            Kicker("文火")
+                            Kicker("处理中")
                             Text(job.stage.ifBlank { job.kind }, style = MaterialTheme.typography.titleMedium)
-                            Text("${job.status} · 第 ${job.unitDone}/${job.unitTotal} 页", style = MaterialTheme.typography.bodySmall)
+                            Text("第 ${job.unitDone}/${job.unitTotal} 页", style = MaterialTheme.typography.bodySmall)
                             if (job.unitTotal > 0) {
                                 QuietProgress(job.unitDone.toFloat() / job.unitTotal)
                             }
@@ -266,7 +250,7 @@ private fun ShelfPane(
             }
         }
         if (shelf.isEmpty()) {
-            EmptyState("还没有书", "导入 EPUB / PDF / 文本，或拍摄书页。不同文件不会按书名合并。", glyph = ZenGlyph.Books)
+            EmptyState("还没有书", "导入或拍摄。", glyph = ZenGlyph.Books)
         } else {
             LazyColumn(
                 contentPadding = androidx.compose.foundation.layout.PaddingValues(16.dp),
@@ -277,7 +261,7 @@ private fun ShelfPane(
                     BookSpineCard(
                         title = item.book.title,
                         subtitle = listOfNotNull(
-                            item.book.author.takeIf { it.isNotBlank() } ?: "作者未识",
+                            item.book.author.takeIf { it.isNotBlank() } ?: "未知作者",
                             if (item.book.coverage == "EXCERPT") "摘录" else "全书",
                         ).joinToString(" · "),
                         progressLabel = item.progress.label,
@@ -309,11 +293,11 @@ private fun PapersPane(
             Modifier.padding(horizontal = 16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-        item { SectionTitle("文火回看", glyph = ZenGlyph.Flame) }
+        item { SectionTitle("回看", glyph = ZenGlyph.Flame) }
         item {
             if (ember.isEmpty()) {
                 Text(
-                    "今天没有待回看的划线或我的稿。当天新写下的，明天再来。",
+                    "今天没有要回看的。",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(bottom = 8.dp),
@@ -343,14 +327,13 @@ private fun PapersPane(
                 QuietButton("今日已回看", vm::dismissEmberToday, Modifier.fillMaxWidth(), glyph = ZenGlyph.Enso)
             }
         }
-        item { SectionTitle("一纸项目", glyph = ZenGlyph.Sheet) }
+        item { SectionTitle("一纸", glyph = ZenGlyph.Sheet) }
         if (projects.isEmpty()) {
-            item { EmptyState("还没有一纸", "打开一本书后会自动建立档案。", glyph = ZenGlyph.Sheet) }
+            item { EmptyState("还没有一纸", "读过书之后会出现在这里。", glyph = ZenGlyph.Sheet) }
         }
         items(projects, key = { it.id }) { project ->
             PaperCard(Modifier.fillMaxWidth(), onClick = { onOpenProject(project.id) }) {
                 Text(project.title, style = MaterialTheme.typography.titleMedium)
-                Text("修订 ${project.revision}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
         item { SectionTitle("笔记", glyph = ZenGlyph.Note) }
@@ -384,21 +367,14 @@ private fun MePane(
                 .padding(24.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
-        Kicker("本机")
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
             StatCell("书", summary.first.toString())
             StatCell("笔记", summary.second.toString())
             StatCell("任务", summary.third.toString())
         }
-        Banner("无登录。换机请先做完整备份。私人笔记默认不上传。")
-        QuietButton("备份与恢复", onBackup, Modifier.fillMaxWidth(), glyph = ZenGlyph.Stack, tone = QuietTone.Ink)
+        QuietButton("备份", onBackup, Modifier.fillMaxWidth(), glyph = ZenGlyph.Stack, tone = QuietTone.Ink)
         QuietButton("设置", onSettings, Modifier.fillMaxWidth(), glyph = ZenGlyph.Sliders)
-        QuietButton("写一则笔记", { onOpenNote("new") }, Modifier.fillMaxWidth(), glyph = ZenGlyph.Note)
-        Text(
-            "食堂本版只有预告和分享。反馈：设置 → 反馈。",
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
+        QuietButton("写笔记", { onOpenNote("new") }, Modifier.fillMaxWidth(), glyph = ZenGlyph.Note)
         }
     }
 }
@@ -416,15 +392,12 @@ private fun CanteenPane(modifier: Modifier, onBackup: () -> Unit) {
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
         ZenMark(ZenGlyph.Bowl, Modifier.height(120.dp).fillMaxWidth())
-        Kicker("预告")
-        Banner("这一版食堂只预告。成果用系统分享带走。没有公共动态，也没有假列表。")
         Text(
-            "真发布以后若要做，再单独立项。现在先把成果带走。",
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            "还没开放。",
+            style = MaterialTheme.typography.bodyLarge,
         )
         QuietButton(
-            "系统分享",
+            "分享",
             {
                 val send = Intent(Intent.ACTION_SEND).apply {
                     type = "text/plain"
@@ -436,7 +409,7 @@ private fun CanteenPane(modifier: Modifier, onBackup: () -> Unit) {
             glyph = ZenGlyph.Share,
             tone = QuietTone.Ink,
         )
-        QuietButton("导出 / 备份", onBackup, Modifier.fillMaxWidth(), glyph = ZenGlyph.Stack)
+        QuietButton("备份", onBackup, Modifier.fillMaxWidth(), glyph = ZenGlyph.Stack)
         }
     }
 }
@@ -461,25 +434,22 @@ fun BookScreen(
                 .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Kicker(if (book?.coverage == "EXCERPT") "摘录" else "全书")
-            Text(
-                if (book?.coverage == "EXCERPT") "状态：摘录，不是全书。" else "状态：按全书导入。",
-                style = MaterialTheme.typography.bodyMedium,
-            )
-            Text(vm.deleteNotice.collectAsStateWithLifecycle().value, style = MaterialTheme.typography.bodySmall)
+            if (book?.coverage == "EXCERPT") {
+                Kicker("摘录")
+            }
             var authorDraft by remember(book?.id, book?.author) { mutableStateOf(book?.author.orEmpty()) }
             QuietField(
                 value = authorDraft,
                 onValueChange = { authorDraft = it },
-                label = "作者（可改，不编造）",
+                label = "作者",
                 modifier = Modifier.fillMaxWidth(),
             )
             QuietButton("保存作者", { vm.saveAuthor(authorDraft) }, Modifier.fillMaxWidth(), glyph = ZenGlyph.Brush)
-            QuietButton("继续读", { editionId?.let(onOpenReader) }, Modifier.fillMaxWidth(), enabled = editionId != null, glyph = ZenGlyph.Book, tone = QuietTone.Ink)
-            QuietButton("AI 搭子", { onOpenCompanion(vm.bookId) }, Modifier.fillMaxWidth(), glyph = ZenGlyph.Chat)
-            QuietButton("一纸项目", { project?.let(onOpenProject) }, Modifier.fillMaxWidth(), enabled = project != null, glyph = ZenGlyph.Sheet)
-            QuietButton("页面整理 / OCR", { editionId?.let(onOpenPages) }, Modifier.fillMaxWidth(), enabled = editionId != null, glyph = ZenGlyph.Scan)
-            QuietButton("从书架删除", { vm.delete(); onBack() }, Modifier.fillMaxWidth(), tone = QuietTone.Danger)
+            QuietButton("阅读", { editionId?.let(onOpenReader) }, Modifier.fillMaxWidth(), enabled = editionId != null, glyph = ZenGlyph.Book, tone = QuietTone.Ink)
+            QuietButton("搭子", { onOpenCompanion(vm.bookId) }, Modifier.fillMaxWidth(), glyph = ZenGlyph.Chat)
+            QuietButton("一纸", { project?.let(onOpenProject) }, Modifier.fillMaxWidth(), enabled = project != null, glyph = ZenGlyph.Sheet)
+            QuietButton("页面", { editionId?.let(onOpenPages) }, Modifier.fillMaxWidth(), enabled = editionId != null, glyph = ZenGlyph.Scan)
+            QuietButton("删除", { vm.delete(); onBack() }, Modifier.fillMaxWidth(), tone = QuietTone.Danger)
         }
     }
 }
@@ -517,7 +487,7 @@ fun ReaderScreen(
                 .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Text("字号（改排版不应改定位）", style = MaterialTheme.typography.bodySmall, color = scheme.onSurfaceVariant)
+            Text("字号", style = MaterialTheme.typography.bodySmall, color = scheme.onSurfaceVariant)
             Slider(
                 value = font,
                 onValueChange = vm::setFont,
@@ -528,10 +498,9 @@ fun ReaderScreen(
                     inactiveTrackColor = scheme.outlineVariant,
                 ),
             )
-            if (stale) Banner("定位已过期，只标记 stale，不伪装成功。")
+            if (stale) Banner("找不到上次读到的位置。")
             notice?.let { Banner(it) }
             if (kind == "PDF") {
-                Banner("PDF 是固定版式。有文本层就选字；没有就把识别叠在页上。不假装可重排。")
                 Text("第 ${pageIndex + 1} / ${pages.size.coerceAtLeast(1)} 页", style = MaterialTheme.typography.labelMedium)
                 val context = LocalContext.current
                 val pageBitmap = remember(pdfPath, pageIndex) {
@@ -543,7 +512,6 @@ fun ReaderScreen(
                     com.onepaper.app.data.ocr.OcrBoxCodec.decode(currentPage?.ocrBoxesJson)
                 }
                 if (currentPage?.hasTextLayer == true && !currentPage.embeddedText.isNullOrBlank()) {
-                    Text("本页文本层（原书，不是重排）", style = MaterialTheme.typography.labelMedium)
                     pageBitmap?.let { Image(it.asImageBitmap(), contentDescription = "PDF 页", modifier = Modifier.fillMaxWidth().height(280.dp)) }
                     SelectableReaderText(
                         text = currentPage.embeddedText.orEmpty(),
@@ -553,7 +521,6 @@ fun ReaderScreen(
                         onAsk = ask,
                     )
                 } else {
-                    Text("本页没有可用文本层。识别稿叠在页上，不当原文。", style = MaterialTheme.typography.labelMedium)
                     if (pageBitmap != null && boxes.isNotEmpty()) {
                         com.onepaper.app.ui.reader.OcrOverlayPage(
                             bitmap = pageBitmap,
@@ -564,7 +531,7 @@ fun ReaderScreen(
                         pdfPath?.let { PdfPreview(it, pageIndex) }
                     }
                     currentPage?.recognitionDraft?.takeIf { it.isNotBlank() }?.let { draft ->
-                        Text("识别稿（校对后可划选）", style = MaterialTheme.typography.labelMedium)
+                        Text("识别文字", style = MaterialTheme.typography.labelMedium)
                         SelectableReaderText(
                             text = draft,
                             fontSp = font,
@@ -572,14 +539,13 @@ fun ReaderScreen(
                             onNote = { vm.highlight(it) },
                             onAsk = ask,
                         )
-                    } ?: Text("先识别本页，再点页上的框或划选识别稿。", style = MaterialTheme.typography.bodySmall)
+                    } ?: Text("先识别本页。", style = MaterialTheme.typography.bodySmall)
                 }
             } else if (kind == "IMAGES") {
-                Banner("扫描页按图像阅读。印刷 OCR 写识别稿，不当原文。")
                 Text("第 ${pageIndex + 1} / ${pages.size.coerceAtLeast(1)} 页", style = MaterialTheme.typography.labelMedium)
                 currentPage?.imageRelPath?.let { ImagePreview(it) }
                 currentPage?.recognitionDraft?.takeIf { it.isNotBlank() }?.let { draft ->
-                    Text("识别稿（划选记笔记 / 问搭子）", style = MaterialTheme.typography.labelMedium)
+                    Text("识别文字", style = MaterialTheme.typography.labelMedium)
                     SelectableReaderText(
                         text = draft,
                         fontSp = font,
@@ -587,7 +553,7 @@ fun ReaderScreen(
                         onNote = { vm.highlight(it) },
                         onAsk = ask,
                     )
-                } ?: Text("先识别本页，再在识别稿上划选。", style = MaterialTheme.typography.bodySmall)
+                } ?: Text("先识别本页。", style = MaterialTheme.typography.bodySmall)
             } else {
                 currentChapter?.let { chapter ->
                     Text("${chapter.title} · ${chapterIndex + 1}/${chapters.size.coerceAtLeast(1)}", style = MaterialTheme.typography.titleMedium)
@@ -598,7 +564,7 @@ fun ReaderScreen(
                         onNote = { vm.highlight(it) },
                         onAsk = ask,
                     )
-                } ?: Text("这一版没有可抽出的文本。")
+                } ?: Text("没有可显示的文字。")
             }
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
                 QuietButton("上一页", vm::prev, Modifier.weight(1f), glyph = ZenGlyph.ChevronLeft)
@@ -613,22 +579,18 @@ fun ReaderScreen(
                 }
             }
             if (kind == "PDF" || kind == "IMAGES") {
-                QuietButton("识别本页（印刷 OCR）", vm::ocrCurrentPage, Modifier.fillMaxWidth(), glyph = ZenGlyph.Scan)
-            }
-            if (selected.isNotBlank()) {
-                Text("当前选区：$selected", style = MaterialTheme.typography.bodySmall, color = scheme.onSurfaceVariant)
+                QuietButton("识别本页", vm::ocrCurrentPage, Modifier.fillMaxWidth(), glyph = ZenGlyph.Scan)
             }
             QuietField(
                 value = selected,
                 onValueChange = vm::select,
-                label = "选区（长按正文划选为主；此处仅手改）",
+                label = "选中的文字",
                 modifier = Modifier.fillMaxWidth(),
             )
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.horizontalScroll(rememberScrollState())) {
-                QuietButton("记笔记", { vm.highlight() }, glyph = ZenGlyph.Note)
-                QuietButton("解释 / 提问", { bookId?.let { ask(selected) } }, glyph = ZenGlyph.Chat)
+                QuietButton("笔记", { vm.highlight() }, glyph = ZenGlyph.Note)
+                QuietButton("提问", { bookId?.let { ask(selected) } }, glyph = ZenGlyph.Chat)
             }
-            LayerChip(KnowledgeLayer.SOURCE)
         }
     }
 }
@@ -693,16 +655,13 @@ fun ImportScreen(
         if (uri != null) vm.import(uri, uri.lastPathSegment ?: "file")
     }
     val scheme = MaterialTheme.colorScheme
-    PaperScaffold(title = "导入确认", onBack = onDone) { padding ->
+    PaperScaffold(title = "导入", onBack = onDone) { padding ->
         Column(
             Modifier.padding(padding).padding(16.dp).verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            ZenMark(ZenGlyph.Import, Modifier.height(72.dp).fillMaxWidth(), tint = scheme.outline)
-            Text("文件会复制到应用私有目录。加密 / DRM 会被拒绝，不会尝试绕过。", style = MaterialTheme.typography.bodyMedium)
-            Text("选择器给的 content URI 常常没有扩展名，会按 MIME / 文件头识别 EPUB、PDF、图片和文本。", style = MaterialTheme.typography.bodySmall, color = scheme.onSurfaceVariant)
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("按摘录而不是全书")
+                Text("标记为摘录")
                 Spacer(Modifier.weight(1f))
                 Switch(
                     checked = excerpt,
@@ -720,25 +679,20 @@ fun ImportScreen(
             }
             QuietButton("选择文件", { picker.launch(arrayOf("*/*")) }, Modifier.fillMaxWidth(), glyph = ZenGlyph.Sheet, tone = QuietTone.Ink)
             QuietButton(
-                "汇入书摘（Kindle / 微信读书导出文件）",
+                "导入书摘",
                 { clipPicker.launch(arrayOf("text/plain", "text/*", "*/*")) },
                 Modifier.fillMaxWidth(),
                 glyph = ZenGlyph.Note,
             )
-            Text(
-                "只读你自己导出的文件。不登录微信读书或 Kindle，也不连它们的服务器。",
-                style = MaterialTheme.typography.bodySmall,
-                color = scheme.onSurfaceVariant,
-            )
-            QuietButton("导入随包说明书（EPUB）", vm::importBundledEpub, Modifier.fillMaxWidth(), glyph = ZenGlyph.Book)
-            QuietButton("导入随包样页（PDF）", vm::importBundledPdf, Modifier.fillMaxWidth(), glyph = ZenGlyph.Scan)
+            QuietButton("导入说明书", vm::importBundledEpub, Modifier.fillMaxWidth(), glyph = ZenGlyph.Book)
+            QuietButton("导入样页", vm::importBundledPdf, Modifier.fillMaxWidth(), glyph = ZenGlyph.Scan)
             last?.let { outcome ->
                 if (outcome.rejectedReason != null) {
-                    Banner("未导入：${outcome.rejectedReason}")
+                    Banner(outcome.rejectedReason)
                 } else {
-                    Banner(outcome.detail ?: "已复制并建档。书与文件一对一，不按书名合并。")
-                    QuietButton("打开这本书", { onOpenBook(outcome.bookId) }, Modifier.fillMaxWidth(), enabled = outcome.bookId.isNotBlank(), glyph = ZenGlyph.Book, tone = QuietTone.Ink)
-                    QuietButton("返回书架", onDone, Modifier.fillMaxWidth(), tone = QuietTone.Ghost)
+                    Banner(outcome.detail ?: "已加入书架。")
+                    QuietButton("打开", { onOpenBook(outcome.bookId) }, Modifier.fillMaxWidth(), enabled = outcome.bookId.isNotBlank(), glyph = ZenGlyph.Book, tone = QuietTone.Ink)
+                    QuietButton("完成", onDone, Modifier.fillMaxWidth(), tone = QuietTone.Ghost)
                 }
             }
         }
@@ -753,21 +707,19 @@ fun CaptureScreen(
     vm: CaptureViewModel = hiltViewModel(),
 ) {
     val last by vm.last.collectAsStateWithLifecycle()
-    PaperScaffold(title = "自炊台", onBack = onDone) { padding ->
+    PaperScaffold(title = "拍摄", onBack = onDone) { padding ->
         Column(
             Modifier.padding(padding).padding(16.dp).verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            ZenMark(ZenGlyph.Camera, Modifier.height(72.dp).fillMaxWidth())
-            Banner("拒相机时仍可用相册。拍照或单张相册会先裁切/旋转，再复制进私有目录建成摘录书。自动翻页检测未承诺。")
             CaptureStudio(bitmaps = vm.bitmaps, onImported = vm::importImages)
             QuietButton("改为导入文件", onImport, Modifier.fillMaxWidth(), glyph = ZenGlyph.Import)
             last?.let { outcome ->
                 if (outcome.rejectedReason != null) {
-                    Banner("未导入：${outcome.rejectedReason}")
+                    Banner(outcome.rejectedReason)
                 } else {
-                    Banner("已建立自炊页档案。请到页面整理做印刷 OCR。")
-                    QuietButton("打开这本自炊页", { onOpenBook(outcome.bookId) }, Modifier.fillMaxWidth(), enabled = outcome.bookId.isNotBlank(), glyph = ZenGlyph.Book, tone = QuietTone.Ink)
+                    Banner("已加入书架。")
+                    QuietButton("打开", { onOpenBook(outcome.bookId) }, Modifier.fillMaxWidth(), enabled = outcome.bookId.isNotBlank(), glyph = ZenGlyph.Book, tone = QuietTone.Ink)
                 }
             }
         }
@@ -793,14 +745,13 @@ fun SettingsScreen(onBack: () -> Unit, vm: SettingsViewModel = hiltViewModel()) 
                 .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Kicker("BYOK")
-            Text("DeepSeek（我们不提供 AI 服务）", style = MaterialTheme.typography.titleMedium)
-            Text("填你自己的 API Key。提问时只发送当前选区或检索片段到 DeepSeek，费用由你的 Key 承担。Key 存在本机密钥库，不进备份。", style = MaterialTheme.typography.bodySmall, color = scheme.onSurfaceVariant)
-            if (masked != null) Text("已保存：$masked", style = MaterialTheme.typography.bodySmall)
+            Text("DeepSeek", style = MaterialTheme.typography.titleMedium)
+            Text("提问用，存在本机。", style = MaterialTheme.typography.bodySmall, color = scheme.onSurfaceVariant)
+            if (masked != null) Text("已保存 $masked", style = MaterialTheme.typography.bodySmall)
             QuietField(
                 value = keyDraft,
                 onValueChange = { keyDraft = it },
-                label = "DeepSeek API Key",
+                label = "API Key",
                 visualTransformation = PasswordVisualTransformation(),
                 modifier = Modifier.fillMaxWidth(),
             )
@@ -809,11 +760,11 @@ fun SettingsScreen(onBack: () -> Unit, vm: SettingsViewModel = hiltViewModel()) 
                 QuietButton("清除", { vm.clearDeepSeekKey(); keyDraft = "" }, Modifier.weight(1f))
             }
             saved?.let { Banner(it) }
-            SettingsSwitch("提问时允许发送指定书页/选区", pages, vm::setUploadPages)
-            SettingsSwitch("回煲时附带私人笔记（默认关）", notes, vm::setUploadNotes)
+            SettingsSwitch("提问时附带选中的原文", pages, vm::setUploadPages)
+            SettingsSwitch("回煲时附带私人笔记", notes, vm::setUploadNotes)
             SettingsSwitch("深色主题", dark, vm::setDark)
             QuietButton(
-                "反馈（${AppConstants.FEEDBACK_EMAIL}）",
+                "反馈",
                 {
                     val intent = Intent(Intent.ACTION_SENDTO).apply {
                         data = Uri.parse("mailto:${AppConstants.FEEDBACK_EMAIL}")
@@ -824,22 +775,8 @@ fun SettingsScreen(onBack: () -> Unit, vm: SettingsViewModel = hiltViewModel()) 
                 Modifier.fillMaxWidth(),
                 glyph = ZenGlyph.Brush,
             )
-            Text("WebDAV 备份在「备份与恢复」。凭据与 DeepSeek Key 一样只放本机密钥库。", style = MaterialTheme.typography.bodySmall, color = scheme.onSurfaceVariant)
-            Kicker("真机门禁")
-            Banner("下列条目尚未在目标真机关闭。模拟器或本机构建不能冒充已过。")
-            Text("Pixel 7：未在本机实测。", style = MaterialTheme.typography.bodySmall, color = scheme.onSurfaceVariant)
-            Text("OPPO 小折叠 / 外屏：未在本机实测。宽屏（≥600dp）改用侧栏，不能代替折叠真机。", style = MaterialTheme.typography.bodySmall, color = scheme.onSurfaceVariant)
-            Text("Readium：本版 EPUB 走抽出文本 + Locator，未接官方 Navigator。", style = MaterialTheme.typography.bodySmall, color = scheme.onSurfaceVariant)
-            Text("ML Kit 无 GMS：bundled 中文模型已接入，无 GMS 机型准确率未测。", style = MaterialTheme.typography.bodySmall, color = scheme.onSurfaceVariant)
-            Kicker("已知限制")
-            Text("完整备份是 zip：含原书、封面、扫描页、划线、进度、一纸。不含 DeepSeek Key / WebDAV 密码。旧版 JSON 只能恢复目录，没有原书。", style = MaterialTheme.typography.bodySmall, color = scheme.onSurfaceVariant)
-            Text("WebDAV 同路径后写覆盖，没有版本历史。", style = MaterialTheme.typography.bodySmall, color = scheme.onSurfaceVariant)
-            Text("PDF 文本层是启发式抽取；超过 32MB 不整本抽，可按页识别，不当原文。PDF 不重排。", style = MaterialTheme.typography.bodySmall, color = scheme.onSurfaceVariant)
-            Text("手写校对是打字改用户稿，不是数字墨水。", style = MaterialTheme.typography.bodySmall, color = scheme.onSurfaceVariant)
-            Text("库内检索是本机 n-gram，不是向量。", style = MaterialTheme.typography.bodySmall, color = scheme.onSurfaceVariant)
-            Text("本地占用约 ${usage / 1024} KB", style = MaterialTheme.typography.bodySmall, color = scheme.onSurfaceVariant)
-            Text("一纸书煲 / OnePaper  0.1.0-delivery", style = MaterialTheme.typography.bodySmall, color = scheme.onSurfaceVariant)
-            Text("无 Key 时阅读、笔记、导出仍可用。印刷 OCR 走端侧 ML Kit。", style = MaterialTheme.typography.bodySmall, color = scheme.onSurfaceVariant)
+            Text("一纸书煲  0.1.0", style = MaterialTheme.typography.bodySmall, color = scheme.onSurfaceVariant)
+            Text("占用 ${usage / 1024} KB", style = MaterialTheme.typography.bodySmall, color = scheme.onSurfaceVariant)
         }
     }
 }
@@ -879,67 +816,64 @@ fun BackupScreen(onBack: () -> Unit, vm: BackupViewModel = hiltViewModel()) {
     val restorePicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri != null) vm.restoreFromUri(context.contentResolver, uri)
     }
-    PaperScaffold(title = "备份恢复", onBack = onBack) { padding ->
+    PaperScaffold(title = "备份", onBack = onBack) { padding ->
         Column(
             Modifier.padding(padding).padding(16.dp).verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            ZenMark(ZenGlyph.Stack, Modifier.height(72.dp).fillMaxWidth())
-            Text("无账号可用。主路径是导出/导入 zip。完整包含原书、划线、进度；不含 DeepSeek Key / WebDAV 密码。", style = MaterialTheme.typography.bodyMedium)
-            Text("旧版 JSON 仍能恢复目录，但没有原书文件。恢复按同 id 写入，后写覆盖。", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text("导出后换机可以恢复。", style = MaterialTheme.typography.bodyMedium)
             QuietButton(
-                "导出到文件",
+                "导出",
                 { createDoc.launch("onepaper-backup.zip") },
                 Modifier.fillMaxWidth(),
                 glyph = ZenGlyph.Stack,
                 tone = QuietTone.Ink,
             )
             QuietButton(
-                "从文件恢复",
+                "恢复",
                 { restorePicker.launch(arrayOf("application/zip", "application/json", "*/*")) },
                 Modifier.fillMaxWidth(),
                 glyph = ZenGlyph.Import,
             )
-            QuietButton("另存到应用缓存（再分享）", vm::exportLibrary, Modifier.fillMaxWidth(), glyph = ZenGlyph.Share)
+            QuietButton("分享备份", vm::exportLibrary, Modifier.fillMaxWidth(), glyph = ZenGlyph.Share)
             if (filePath != null) {
                 QuietButton(
-                    "系统分享缓存备份",
+                    "用系统分享",
                     { ExportShare.sendFile(context, File(filePath!!), "application/zip", "分享备份") },
                     Modifier.fillMaxWidth(),
                     glyph = ZenGlyph.Share,
                 )
             }
-            Text("高级：粘贴 JSON", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             QuietField(
                 value = restoreText,
                 onValueChange = { restoreText = it },
-                label = "仅作应急，不是主路径",
+                label = "粘贴备份",
                 modifier = Modifier.fillMaxWidth().height(120.dp),
                 minLines = 4,
             )
             QuietButton("从粘贴恢复", { vm.restore(restoreText) }, Modifier.fillMaxWidth(), tone = QuietTone.Ghost)
-            SectionTitle("WebDAV（无自建账号）", glyph = ZenGlyph.Cloud)
+            SectionTitle("网盘", glyph = ZenGlyph.Cloud)
             Text(
-                "填你自己的盘，例如坚果云。只用 HTTPS。密码请用应用专用密码。凭据进本机密钥库，不进备份包。同路径后写覆盖，没有版本历史。默认文件名是 onepaper-backup.zip。",
+                "坚果云等，请用应用专用密码。",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
-            QuietField(value = davUrl, onValueChange = { vm.davUrl.value = it }, label = "地址（如 https://dav.jianguoyun.com/dav）", modifier = Modifier.fillMaxWidth())
+            QuietField(value = davUrl, onValueChange = { vm.davUrl.value = it }, label = "地址", modifier = Modifier.fillMaxWidth())
             QuietField(value = davUser, onValueChange = { vm.davUser.value = it }, label = "用户名", modifier = Modifier.fillMaxWidth())
             QuietField(
                 value = davPassword,
                 onValueChange = { vm.davPassword.value = it },
-                label = if (davSaved) "应用专用密码（留空则沿用已保存）" else "应用专用密码",
+                label = if (davSaved) "密码（留空则沿用）" else "密码",
                 modifier = Modifier.fillMaxWidth(),
                 visualTransformation = PasswordVisualTransformation(),
             )
-            QuietField(value = davPath, onValueChange = { vm.davPath.value = it }, label = "远端路径", modifier = Modifier.fillMaxWidth())
+            QuietField(value = davPath, onValueChange = { vm.davPath.value = it }, label = "路径", modifier = Modifier.fillMaxWidth())
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
                 QuietButton("保存", vm::saveWebDav, Modifier.weight(1f), tone = QuietTone.Ink)
                 QuietButton("清除", vm::clearWebDav, Modifier.weight(1f))
             }
-            QuietButton("上传到 WebDAV", vm::uploadWebDav, Modifier.fillMaxWidth(), glyph = ZenGlyph.Cloud, enabled = davSaved)
-            QuietButton("从 WebDAV 恢复", vm::restoreWebDav, Modifier.fillMaxWidth(), glyph = ZenGlyph.Import, enabled = davSaved)
+            QuietButton("上传到网盘", vm::uploadWebDav, Modifier.fillMaxWidth(), glyph = ZenGlyph.Cloud, enabled = davSaved)
+            QuietButton("从网盘恢复", vm::restoreWebDav, Modifier.fillMaxWidth(), glyph = ZenGlyph.Import, enabled = davSaved)
             message?.let { Banner(it) }
         }
     }

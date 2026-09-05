@@ -27,14 +27,12 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.onepaper.app.data.share.ExportShare
 import com.onepaper.app.ui.components.Banner
 import com.onepaper.app.ui.components.Kicker
-import com.onepaper.app.ui.components.LayerChip
 import com.onepaper.app.ui.components.PaperCard
 import com.onepaper.app.ui.components.PaperScaffold
 import com.onepaper.app.ui.components.QuietButton
 import com.onepaper.app.ui.components.QuietField
 import com.onepaper.app.ui.components.QuietTone
 import com.onepaper.app.ui.graphics.ZenGlyph
-import com.onepaper.app.ui.graphics.ZenMark
 import com.onepaper.app.ui.vm.BackupViewModel
 import com.onepaper.app.ui.vm.CompanionVm
 import com.onepaper.app.ui.vm.NoteViewModel
@@ -42,7 +40,6 @@ import com.onepaper.app.ui.vm.PagesViewModel
 import com.onepaper.app.ui.vm.ProjectViewModel
 import com.onepaper.app.ui.vm.RecookViewModel
 import com.onepaper.app.ui.vm.ShelfViewModel
-import com.onepaper.domain.model.KnowledgeLayer
 import com.onepaper.domain.recook.ProposalDecision
 import java.io.File
 
@@ -52,24 +49,22 @@ fun RecookScreen(onBack: () -> Unit, vm: RecookViewModel = hiltViewModel()) {
     val current by vm.currentBodies.collectAsStateWithLifecycle()
     val banner by vm.banner.collectAsStateWithLifecycle()
     var edits by remember { mutableStateOf<Map<String, String>>(emptyMap()) }
-    PaperScaffold(title = "回煲审阅", onBack = onBack) { padding ->
+    PaperScaffold(title = "回煲", onBack = onBack) { padding ->
         Column(
             Modifier.padding(padding).padding(16.dp).verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            ZenMark(ZenGlyph.Wok, Modifier.height(72.dp).fillMaxWidth())
-            Text("逐条接受 / 拒绝 / 改后接受。禁止整份重写。", style = MaterialTheme.typography.bodyMedium)
             banner?.let { Banner(it) }
             items.forEach { item ->
                 PaperCard(Modifier.fillMaxWidth()) {
-                    Kicker("操作 ${item.op}")
-                    Text(item.sectionId, style = MaterialTheme.typography.titleSmall)
-                    Text("当前：${current[item.sectionId].orEmpty()}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    Text("建议：${item.proposedBody.orEmpty()}", style = MaterialTheme.typography.bodyMedium)
+                    Text("现在", style = MaterialTheme.typography.labelMedium)
+                    Text(current[item.sectionId].orEmpty(), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text("建议", style = MaterialTheme.typography.labelMedium)
+                    Text(item.proposedBody.orEmpty(), style = MaterialTheme.typography.bodyMedium)
                     QuietField(
                         value = edits[item.id] ?: item.proposedBody.orEmpty(),
                         onValueChange = { edits = edits + (item.id to it) },
-                        label = "改后接受",
+                        label = "改完再接受",
                         modifier = Modifier.fillMaxWidth(),
                     )
                 }
@@ -90,25 +85,16 @@ fun CompanionScreen(
     vm: CompanionVm = hiltViewModel(),
 ) {
     val items by vm.messages.collectAsStateWithLifecycle()
-    val usingDeepSeek by vm.usingDeepSeek.collectAsStateWithLifecycle()
-    val uploadPages by vm.uploadPages.collectAsStateWithLifecycle()
     val busy by vm.busy.collectAsStateWithLifecycle()
     val streaming by vm.streaming.collectAsStateWithLifecycle()
     val notice by vm.notice.collectAsStateWithLifecycle()
     var draft by remember { mutableStateOf("") }
     var quote by remember { mutableStateOf(vm.seedQuote) }
-    PaperScaffold(title = "AI 搭子", onBack = onBack) { padding ->
+    PaperScaffold(title = "搭子", onBack = onBack) { padding ->
         Column(
             Modifier.padding(padding).padding(16.dp).verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            Banner(
-                buildString {
-                    append(if (usingDeepSeek) "通道：DeepSeek Key（本机）。" else "通道：本地说明（Fake）。")
-                    append(if (uploadPages) " 发送范围：允许附当前选区/书页。" else " 发送范围：关。无选区不附原文。")
-                    append(" 提问可取消。")
-                },
-            )
             notice?.let { Banner(it) }
             items.forEach { msg ->
                 PaperCard(Modifier.fillMaxWidth()) {
@@ -130,20 +116,20 @@ fun CompanionScreen(
                         }
                     }
                     if (msg.insufficientEvidence) {
-                        Text("证据不足", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.tertiary)
+                        Text("依据不够", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.tertiary)
                     }
                 }
             }
             if (busy && streaming.isNotBlank()) {
                 PaperCard(Modifier.fillMaxWidth()) {
-                    Kicker("搭子（流式）")
+                    Kicker("搭子")
                     Text(streaming, style = MaterialTheme.typography.bodyMedium)
                 }
             }
-            QuietField(value = quote, onValueChange = { quote = it }, label = "引用原文（消息上可点回）", modifier = Modifier.fillMaxWidth())
-            QuietField(value = draft, onValueChange = { draft = it }, label = "提问", modifier = Modifier.fillMaxWidth())
+            QuietField(value = quote, onValueChange = { quote = it }, label = "原文", modifier = Modifier.fillMaxWidth())
+            QuietField(value = draft, onValueChange = { draft = it }, label = "问题", modifier = Modifier.fillMaxWidth())
             if (busy) {
-                QuietButton("取消本次提问", vm::cancelAsk, Modifier.fillMaxWidth(), tone = QuietTone.Danger)
+                QuietButton("取消", vm::cancelAsk, Modifier.fillMaxWidth(), tone = QuietTone.Danger)
             } else {
                 QuietButton(
                     "发送",
@@ -153,7 +139,6 @@ fun CompanionScreen(
                     tone = QuietTone.Ink,
                 )
             }
-            LayerChip(KnowledgeLayer.AI)
         }
     }
 }
@@ -182,9 +167,10 @@ fun NoteScreen(
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             QuietField(value = title, onValueChange = { title = it; vm.save(title, body, recognition.ifBlank { null }) }, label = "标题", modifier = Modifier.fillMaxWidth())
-            QuietField(value = body, onValueChange = { body = it; vm.save(title, body, recognition.ifBlank { null }) }, label = "我的稿", modifier = Modifier.fillMaxWidth(), minLines = 6)
-            QuietField(value = recognition, onValueChange = {}, enabled = false, label = "识别稿（只读，不当原文）", modifier = Modifier.fillMaxWidth())
-            LayerChip(KnowledgeLayer.USER)
+            QuietField(value = body, onValueChange = { body = it; vm.save(title, body, recognition.ifBlank { null }) }, label = "笔记", modifier = Modifier.fillMaxWidth(), minLines = 6)
+            if (recognition.isNotBlank()) {
+                QuietField(value = recognition, onValueChange = {}, enabled = false, label = "识别文字", modifier = Modifier.fillMaxWidth())
+            }
             if (jump != null && jumpEdition != null) {
                 QuietButton(
                     "回原文",
@@ -195,7 +181,7 @@ fun NoteScreen(
                 )
             }
             if (vm.noteId != null) {
-                QuietButton("手写校对", { onHandwriting(vm.noteId) }, Modifier.fillMaxWidth(), glyph = ZenGlyph.Brush)
+                QuietButton("校对", { onHandwriting(vm.noteId) }, Modifier.fillMaxWidth(), glyph = ZenGlyph.Brush)
             }
         }
     }
@@ -206,16 +192,16 @@ fun HandwritingScreen(onBack: () -> Unit, vm: NoteViewModel = hiltViewModel()) {
     val note by vm.note.collectAsStateWithLifecycle()
     var user by remember { mutableStateOf("") }
     LaunchedEffect(note) { user = note?.userDraft.orEmpty() }
-    PaperScaffold(title = "手写校对", onBack = onBack) { padding ->
+    PaperScaffold(title = "校对", onBack = onBack) { padding ->
         Column(
             Modifier.padding(padding).padding(16.dp).verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            Text("左：识别稿。右：你改的是用户稿。", style = MaterialTheme.typography.bodyMedium)
-            Text("这是打字改用户稿，不是数字墨水。", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            Text("识别：${note?.recognitionDraft ?: "（无）"}", style = MaterialTheme.typography.bodySmall)
-            QuietField(value = user, onValueChange = { user = it }, label = "用户稿", modifier = Modifier.fillMaxWidth(), minLines = 6)
-            QuietButton("保存用户稿", { vm.save(note?.title.orEmpty(), user, note?.recognitionDraft) }, Modifier.fillMaxWidth(), glyph = ZenGlyph.Brush, tone = QuietTone.Ink)
+            if (!note?.recognitionDraft.isNullOrBlank()) {
+                Text(note?.recognitionDraft.orEmpty(), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            QuietField(value = user, onValueChange = { user = it }, label = "笔记", modifier = Modifier.fillMaxWidth(), minLines = 6)
+            QuietButton("保存", { vm.save(note?.title.orEmpty(), user, note?.recognitionDraft) }, Modifier.fillMaxWidth(), glyph = ZenGlyph.Brush, tone = QuietTone.Ink)
         }
     }
 }
@@ -229,12 +215,12 @@ fun ExportScreen(onBack: () -> Unit, vm: BackupViewModel = hiltViewModel(), proj
     val includePrivate by vm.includePrivate.collectAsStateWithLifecycle()
     val context = LocalContext.current
     LaunchedEffect(projectVm.projectId) { vm.loadPaper(projectVm.projectId) }
-    PaperScaffold(title = "出煲", onBack = onBack) { padding ->
+    PaperScaffold(title = "导出", onBack = onBack) { padding ->
         Column(
             Modifier.padding(padding).padding(16.dp).verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Text("像一张能发出去的纸。默认不含私人批注。", style = MaterialTheme.typography.bodyMedium)
+            Text("默认不含私人笔记。", style = MaterialTheme.typography.bodyMedium)
             Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
                 Text("附带私人笔记", modifier = Modifier.weight(1f))
                 androidx.compose.material3.Switch(
@@ -243,7 +229,7 @@ fun ExportScreen(onBack: () -> Unit, vm: BackupViewModel = hiltViewModel(), proj
                 )
             }
             PaperCard(Modifier.fillMaxWidth()) {
-                Text(markdown.ifBlank { "正在出煲…" }, style = MaterialTheme.typography.bodyMedium)
+                Text(markdown.ifBlank { "正在整理…" }, style = MaterialTheme.typography.bodyMedium)
             }
             QuietButton("导出 Markdown", { vm.exportMarkdown(projectVm.projectId) }, Modifier.fillMaxWidth(), glyph = ZenGlyph.Sheet, tone = QuietTone.Ink)
             QuietButton("导出纯文本", { vm.exportPlain(projectVm.projectId) }, Modifier.fillMaxWidth(), glyph = ZenGlyph.Share)
@@ -281,21 +267,19 @@ fun PagesScreen(onBack: () -> Unit, vm: PagesViewModel = hiltViewModel()) {
     val picker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
         if (uri != null) vm.addPage(uri, uri.lastPathSegment ?: "page.jpg")
     }
-    PaperScaffold(title = "页面整理", onBack = onBack) { padding ->
+    PaperScaffold(title = "页面", onBack = onBack) { padding ->
         Column(
             Modifier.padding(padding).padding(16.dp).verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            Banner("缩略图失败、补拍、旋转裁切都在此台处理。识别稿与原图分列。")
-            QuietButton("补拍 / 加入相册页", { picker.launch("image/*") }, Modifier.fillMaxWidth(), glyph = ZenGlyph.Camera, tone = QuietTone.Ink)
+            QuietButton("加入一页", { picker.launch("image/*") }, Modifier.fillMaxWidth(), glyph = ZenGlyph.Camera, tone = QuietTone.Ink)
             pages.forEach { page ->
                 PaperCard(Modifier.fillMaxWidth()) {
                     Text("第 ${page.index + 1} 页", style = MaterialTheme.typography.titleMedium)
-                    Text("识别稿：${page.recognitionDraft ?: "尚未识别"}", style = MaterialTheme.typography.bodySmall)
-                    Text("用户校对：${page.ocrText ?: "—"}", style = MaterialTheme.typography.bodySmall)
-                    QuietButton("印刷 OCR", { vm.ocrPage(page) }, glyph = ZenGlyph.Scan)
-                    QuietField(value = proof, onValueChange = { proof = it }, label = "校对写入用户稿", modifier = Modifier.fillMaxWidth())
-                    QuietButton("保存校对", { vm.proofread(page, proof) }, glyph = ZenGlyph.Brush, tone = QuietTone.Ink)
+                    Text(page.recognitionDraft ?: "还没识别", style = MaterialTheme.typography.bodySmall)
+                    QuietButton("识别", { vm.ocrPage(page) }, glyph = ZenGlyph.Scan)
+                    QuietField(value = proof, onValueChange = { proof = it }, label = "校对", modifier = Modifier.fillMaxWidth())
+                    QuietButton("保存", { vm.proofread(page, proof) }, glyph = ZenGlyph.Brush, tone = QuietTone.Ink)
                 }
             }
         }
@@ -310,13 +294,21 @@ fun TaskScreen(onBack: () -> Unit, shelf: ShelfViewModel = hiltViewModel()) {
             Modifier.padding(padding).padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            Text("强停后文件仍在，可手动恢复，不承诺自动续跑。", style = MaterialTheme.typography.bodyMedium)
             jobs.forEach { job ->
                 PaperCard(Modifier.fillMaxWidth()) {
-                    Kicker(job.status)
-                    Text(job.clientJobId, style = MaterialTheme.typography.titleSmall)
+                    Kicker(if (job.status == "COMPLETED") "完成" else "处理中")
+                    Text(
+                        when (job.kind) {
+                            "import" -> "导入"
+                            "ocr" -> "识别"
+                            else -> job.stage.ifBlank { "任务" }
+                        },
+                        style = MaterialTheme.typography.titleSmall,
+                    )
                     Text("${job.stage} · 第 ${job.unitDone}/${job.unitTotal} 页", style = MaterialTheme.typography.bodySmall)
-                    Text(job.message, style = MaterialTheme.typography.bodyMedium)
+                    if (job.message.isNotBlank()) {
+                        Text(job.message, style = MaterialTheme.typography.bodyMedium)
+                    }
                 }
             }
         }

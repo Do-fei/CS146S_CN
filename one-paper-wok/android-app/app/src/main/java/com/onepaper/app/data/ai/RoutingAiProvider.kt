@@ -4,7 +4,6 @@ import com.onepaper.app.data.secure.SecretStore
 import com.onepaper.domain.ai.AiProvider
 import com.onepaper.domain.ai.CompanionAnswer
 import com.onepaper.domain.ai.CompanionRequest
-import com.onepaper.domain.ai.FakeAiProvider
 import com.onepaper.domain.recook.ChangeProposal
 import com.onepaper.domain.recook.ProjectSnapshot
 import javax.inject.Inject
@@ -13,12 +12,11 @@ import javax.inject.Singleton
 @Singleton
 class RoutingAiProvider @Inject constructor(
     private val secrets: SecretStore,
-    private val fake: FakeAiProvider,
     private val deepSeek: DeepSeekClient,
 ) : AiProvider {
 
     override suspend fun answer(request: CompanionRequest): CompanionAnswer {
-        if (!secrets.hasDeepSeekKey()) return fake.answer(request)
+        if (!secrets.hasDeepSeekKey()) return needKey()
         return runCatching { deepSeek.answer(request) }
             .getOrElse { error -> failure(request, error) }
     }
@@ -27,7 +25,11 @@ class RoutingAiProvider @Inject constructor(
         request: CompanionRequest,
         onDelta: (String) -> Unit,
     ): CompanionAnswer {
-        if (!secrets.hasDeepSeekKey()) return fake.answerStreaming(request, onDelta)
+        if (!secrets.hasDeepSeekKey()) {
+            val answer = needKey()
+            onDelta(answer.text)
+            return answer
+        }
         return try {
             deepSeek.answerStreaming(request, onDelta)
         } catch (cancelled: kotlinx.coroutines.CancellationException) {
@@ -39,18 +41,25 @@ class RoutingAiProvider @Inject constructor(
         }
     }
 
+    private fun needKey(): CompanionAnswer =
+        CompanionAnswer(
+            text = "先到设置里填提问用的 Key。",
+            citations = emptyList(),
+            insufficientEvidence = true,
+            refusedWholeBookConclusion = false,
+        )
+
     private fun failure(request: CompanionRequest, error: Throwable): CompanionAnswer =
         CompanionAnswer(
-            text = "DeepSeek 不可用：${safeMessage(error)}。阅读和笔记仍可继续。",
+            text = safeMessage(error),
             citations = request.evidence,
             insufficientEvidence = true,
             refusedWholeBookConclusion = false,
         )
 
     override suspend fun proposeRecook(base: ProjectSnapshot, userNotes: List<String>): ChangeProposal {
-        if (!secrets.hasDeepSeekKey()) return fake.proposeRecook(base, userNotes)
-        return runCatching { deepSeek.proposeRecook(base, userNotes) }
-            .getOrElse { fake.proposeRecook(base, userNotes) }
+        if (!secrets.hasDeepSeekKey()) error("先到设置里填提问用的 Key。")
+        return deepSeek.proposeRecook(base, userNotes)
     }
 
     private fun safeMessage(error: Throwable): String {

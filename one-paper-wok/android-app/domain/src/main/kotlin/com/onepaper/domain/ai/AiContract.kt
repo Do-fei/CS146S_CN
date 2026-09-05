@@ -46,7 +46,7 @@ class FakeAiProvider : AiProvider {
     override suspend fun answer(request: CompanionRequest): CompanionAnswer {
         if (request.scope.importedChapterCount <= 0 && request.scope.importedPageCount <= 0) {
             return CompanionAnswer(
-                text = "还没有导入可读范围，不能假装读过这本书。",
+                text = "还没有可引用的原文。",
                 citations = emptyList(),
                 insufficientEvidence = true,
                 refusedWholeBookConclusion = true,
@@ -54,7 +54,7 @@ class FakeAiProvider : AiProvider {
         }
         if (looksLikeWholeBook(request.question) && !request.scope.claimsWholeBook) {
             return CompanionAnswer(
-                text = "目前只导入了部分章节/页，不能给出全书结论。请把问题限制在已导入范围内，或继续导入。",
+                text = "这本书只导入了一部分，回答也只基于这些页。",
                 citations = request.evidence,
                 insufficientEvidence = true,
                 refusedWholeBookConclusion = true,
@@ -62,14 +62,14 @@ class FakeAiProvider : AiProvider {
         }
         if (request.evidence.isEmpty()) {
             return CompanionAnswer(
-                text = "证据不足：当前提问没有可点回的原文定位。",
+                text = "选一段原文再问。",
                 citations = emptyList(),
                 insufficientEvidence = true,
                 refusedWholeBookConclusion = false,
             )
         }
         val quote = request.evidence.first().quote
-        val text = "就已导入范围来看：「$quote」——这是依据引用的解释，不是全书结论。"
+        val text = "「$quote」——按这段来看。"
         return CompanionAnswer(
             text = text,
             citations = request.evidence,

@@ -27,7 +27,7 @@ class ClippingRepository @Inject constructor(
             return ImportOutcome(
                 "",
                 "",
-                "无法识别这份书摘。请用 Kindle「我的剪贴」或微信读书导出的笔记文本，不要登录它们的账号。",
+                "无法识别这份书摘。请用 Kindle 或微信读书导出的文本。",
             )
         }
         val grouped = items.groupBy { it.bookTitle.trim() }.filterKeys { it.isNotBlank() }
@@ -90,7 +90,7 @@ class ClippingRepository @Inject constructor(
         return ImportOutcome(
             bookId = lastBook,
             editionId = lastEdition,
-            detail = "已汇入 ${grouped.size} 本书的书摘，划线 $highlightCount 条。按摘录建档，不是全书。",
+            detail = "已导入 $highlightCount 条划线。",
         )
     }
 }

@@ -54,9 +54,9 @@ class BackupPathsTest {
             annotationCount = 4,
         )
         val old = RestoreOutcome(manifest, oldCatalogOnly = true, restoredFileCount = 0, missingFileCount = 0)
-        assertTrue(old.userMessage().contains("不含原书文件"))
+        assertTrue(old.userMessage().contains("没有书文件"))
         val full = RestoreOutcome(manifest, oldCatalogOnly = false, restoredFileCount = 5, missingFileCount = 0)
-        assertTrue(full.userMessage().contains("5 个书房文件"))
+        assertTrue(full.userMessage().contains("已恢复 2 本书"))
         val missing = RestoreOutcome(manifest, oldCatalogOnly = false, restoredFileCount = 1, missingFileCount = 2)
         assertTrue(missing.userMessage().contains("缺失"))
     }

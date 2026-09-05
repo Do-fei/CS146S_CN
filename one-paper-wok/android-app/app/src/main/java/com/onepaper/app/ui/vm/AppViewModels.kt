@@ -90,7 +90,7 @@ class ShelfViewModel @Inject constructor(
             val seeded = library.ensureSeeded()
             if (seeded != null) {
                 val chapter = library.chaptersOf(seeded.editionId).firstOrNull()?.plainText.orEmpty()
-                projects.ensureForBook(seeded.bookId, "一纸书煲 · 授权摘录样本", chapter)
+                projects.ensureForBook(seeded.bookId, "说明书", chapter)
             }
             library.activeBooks().forEach { library.ensureCover(it) }
         }
@@ -112,7 +112,7 @@ class BookViewModel @Inject constructor(
     val book = MutableStateFlow<BookEntity?>(null)
     val editionId = MutableStateFlow<String?>(null)
     val projectId = MutableStateFlow<String?>(null)
-    val deleteNotice = MutableStateFlow("删除会软删书架条目，原文件仍在私有目录，可用备份恢复前请先导出。")
+    val deleteNotice = MutableStateFlow("")
 
     init {
         viewModelScope.launch {
@@ -218,7 +218,7 @@ class ReaderViewModel @Inject constructor(
             recognitionDraft = page?.recognitionDraft,
         )
         if (passage == null) {
-            notice.value = "这一页没有可朗读的文字。扫描页请先识别。"
+            notice.value = "这一页没有可朗读的文字。"
             return
         }
         tts.speak(passage)
@@ -240,19 +240,19 @@ class ReaderViewModel @Inject constructor(
         selected.value = quote
         val book = bookId.value
         if (quote.isBlank() || book == null) {
-            notice.value = "先在正文里划选一段，再记笔记。"
+            notice.value = "先划一段。"
             return
         }
         viewModelScope.launch {
             if (kind.value != "PDF" && kind.value != "IMAGES" &&
                 chapters.value.none { it.plainText.contains(quote) }
             ) {
-                notice.value = "选区不在当前抽出文本中，没有记上。"
+                notice.value = "这段没对上，没记下。"
                 return@launch
             }
             val locator = locatorForQuote(quote)
             if (locator == null) {
-                notice.value = "选区不在当前抽出文本中，没有记上。"
+                notice.value = "这段没对上，没记下。"
                 return@launch
             }
             when (locator) {
@@ -279,11 +279,7 @@ class ReaderViewModel @Inject constructor(
                 stale.value = found !is com.onepaper.domain.citation.ResolveResult.Found || found.stale
             }
             jumpQuote.value = quote
-            notice.value = if (kind.value == "PDF" || kind.value == "IMAGES") {
-                "已按第 ${pageIndex.value + 1} 页记下选区。"
-            } else {
-                "已记下选区。"
-            }
+            notice.value = "已记下。"
             persistPosition()
         }
     }
@@ -311,7 +307,7 @@ class ReaderViewModel @Inject constructor(
             if (selected.value.isBlank() && result.fullText.isNotBlank()) {
                 selected.value = result.fullText.take(80)
             }
-            notice.value = if (result.fullText.isBlank()) "没有识别到文字。" else "识别稿已写入本页，请校对。"
+            notice.value = if (result.fullText.isBlank()) "没有识别到文字。" else "已识别。"
         }
     }
 
@@ -355,7 +351,7 @@ class ReaderViewModel @Inject constructor(
         if (seedQuote.isNotBlank()) {
             selected.value = seedQuote
             jumpQuote.value = seedQuote
-            notice.value = "已跳到引用位置。"
+            notice.value = "已跳到这里。"
         }
     }
 
@@ -439,12 +435,14 @@ class ProjectViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val projects: ProjectRepository,
     private val library: LibraryRepository,
+    private val secrets: SecretStore,
 ) : ViewModel() {
     val projectId: String = checkNotNull(savedStateHandle["projectId"])
     val project = MutableStateFlow<ProjectEntity?>(null)
     val sections = MutableStateFlow<List<ProjectSectionEntity>>(emptyList())
     val quotes = MutableStateFlow<List<AnnotationEntity>>(emptyList())
     val proposalId = MutableStateFlow<String?>(null)
+    val notice = MutableStateFlow<String?>(null)
 
     init {
         refresh()
@@ -473,6 +471,10 @@ class ProjectViewModel @Inject constructor(
 
     fun regenerate(sectionId: String) {
         viewModelScope.launch {
+            if (!secrets.hasDeepSeekKey()) {
+                notice.value = "先到设置里填提问用的 Key。"
+                return@launch
+            }
             projects.regenerateSection(projectId, sectionId)
             refresh()
         }
@@ -480,7 +482,16 @@ class ProjectViewModel @Inject constructor(
 
     fun recook(notes: List<String>) {
         viewModelScope.launch {
-            proposalId.value = projects.createProposalFromNotes(projectId, notes)
+            if (!secrets.hasDeepSeekKey()) {
+                notice.value = "先到设置里填提问用的 Key。"
+                return@launch
+            }
+            runCatching { projects.createProposalFromNotes(projectId, notes) }
+                .onSuccess {
+                    notice.value = null
+                    proposalId.value = it
+                }
+                .onFailure { notice.value = it.message ?: "没做成。" }
         }
     }
 }
@@ -512,7 +523,7 @@ class RecookViewModel @Inject constructor(
             }
             projects.decide(proposalId, map)
             val proposal = projects.proposal(proposalId)
-            banner.value = if (proposal?.status == "conflicts") "计算期间文稿已变，冲突项未覆盖你的最新编辑。" else "已按逐条决定合并。"
+            banner.value = if (proposal?.status == "conflicts") "你刚改过，这条没覆盖。" else "已保存。"
             items.value = projects.proposalItems(proposalId)
         }
     }
@@ -564,7 +575,7 @@ class CompanionVm @Inject constructor(
                     onDelta = { streaming.value = it },
                 )
             } catch (cancelled: CancellationException) {
-                notice.value = "已取消本次提问。阅读和笔记仍可用。"
+                notice.value = "已取消。"
                 throw cancelled
             } catch (error: Throwable) {
                 notice.value = error.message ?: "提问失败。"
@@ -649,7 +660,7 @@ class SettingsViewModel @Inject constructor(
     fun saveDeepSeekKey(raw: String) {
         secrets.setDeepSeekKey(raw)
         maskedKey.value = secrets.maskedDeepSeekKey()
-        savedMessage.value = if (secrets.hasDeepSeekKey()) "已保存在本机密钥库，不进备份。" else "已清除。"
+        savedMessage.value = if (secrets.hasDeepSeekKey()) "已保存。" else "已清除。"
     }
 
     fun clearDeepSeekKey() {
@@ -720,7 +731,7 @@ class CaptureViewModel @Inject constructor(
             val outcome = library.importImages(uris)
             if (outcome.rejectedReason == null && outcome.bookId.isNotBlank()) {
                 val book = library.book(outcome.bookId)
-                projects.ensureForBook(outcome.bookId, book?.title ?: "自炊页", "")
+                projects.ensureForBook(outcome.bookId, book?.title ?: "扫描", "")
             }
             last.value = outcome
         }
@@ -756,7 +767,7 @@ class BackupViewModel @Inject constructor(
         davPassword.value = ""
         davSaved.value = secrets.hasWebDav()
         message.value = if (secrets.hasWebDav()) {
-            "已保存 WebDAV，凭据在本机密钥库，不进备份。"
+            "已保存。"
         } else {
             "地址或密码还空着。"
         }
@@ -769,7 +780,7 @@ class BackupViewModel @Inject constructor(
         davPassword.value = ""
         davPath.value = com.onepaper.domain.backup.WebDavPath.DEFAULT_REMOTE
         davSaved.value = false
-        message.value = "已清除 WebDAV。"
+        message.value = "已清除网盘。"
     }
 
     fun uploadWebDav() {
@@ -779,7 +790,7 @@ class BackupViewModel @Inject constructor(
                     val file = backup.exportArchive()
                     webdav.uploadFile(file)
                 }
-                message.value = "已上传 zip 到 WebDAV。同路径后写覆盖。不含 DeepSeek Key / WebDAV 密码。"
+                message.value = "已上传。"
             }.onFailure { message.value = it.message }
         }
     }
@@ -801,7 +812,7 @@ class BackupViewModel @Inject constructor(
         viewModelScope.launch {
             val file = backup.exportArchive()
             filePath.value = file.absolutePath
-            message.value = "已写出完整备份（zip，含原书/划线/进度，不含 Key）：${file.name}"
+            message.value = "已导出 ${file.name}"
         }
     }
 
@@ -809,7 +820,7 @@ class BackupViewModel @Inject constructor(
         viewModelScope.launch {
             runCatching {
                 backup.exportToUri(resolver, uri)
-                message.value = "已导出 zip（含原书/划线/进度，不含 DeepSeek Key）。"
+                message.value = "已导出。"
             }.onFailure { message.value = it.message }
         }
     }

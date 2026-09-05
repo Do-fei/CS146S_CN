@@ -20,22 +20,22 @@ object TtsPolicy {
             "PDF" -> {
                 val layer = embeddedText?.trim().orEmpty()
                 if (layer.isNotBlank()) {
-                    TtsPassage(layer, KnowledgeLayer.SOURCE, "本页文本层")
+                    TtsPassage(layer, KnowledgeLayer.SOURCE, "本页")
                 } else {
                     val draft = recognitionDraft?.trim().orEmpty()
                     if (draft.isBlank()) null
-                    else TtsPassage(draft, KnowledgeLayer.AI, "本页识别稿，不是原文")
+                    else TtsPassage(draft, KnowledgeLayer.AI, "识别文字")
                 }
             }
             "IMAGES" -> {
                 val draft = recognitionDraft?.trim().orEmpty()
                 if (draft.isBlank()) null
-                else TtsPassage(draft, KnowledgeLayer.AI, "本页识别稿，不是原文")
+                else TtsPassage(draft, KnowledgeLayer.AI, "识别文字")
             }
             else -> {
                 val body = chapterText?.trim().orEmpty()
                 if (body.isBlank()) null
-                else TtsPassage(body, KnowledgeLayer.SOURCE, "本章原文")
+                else TtsPassage(body, KnowledgeLayer.SOURCE, "本章")
             }
         }
     }

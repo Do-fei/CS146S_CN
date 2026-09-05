@@ -19,7 +19,6 @@ import com.onepaper.app.data.local.SectionDao
 import com.onepaper.app.data.ai.RoutingAiProvider
 import com.onepaper.app.data.ocr.MlKitOcrEngine
 import com.onepaper.domain.ai.AiProvider
-import com.onepaper.domain.ai.FakeAiProvider
 import com.onepaper.domain.ocr.FakeOcrEngine
 import com.onepaper.domain.ocr.OcrEngine
 import com.onepaper.domain.recook.RecookMerger
@@ -54,10 +53,6 @@ object AppModule {
     @Provides fun conversationDao(db: AppDatabase): ConversationDao = db.conversationDao()
     @Provides fun jobDao(db: AppDatabase): JobDao = db.jobDao()
     @Provides fun backupDao(db: AppDatabase): BackupDao = db.backupDao()
-
-    @Provides
-    @Singleton
-    fun fakeAiProvider(): FakeAiProvider = FakeAiProvider()
 
     @Provides
     @Singleton

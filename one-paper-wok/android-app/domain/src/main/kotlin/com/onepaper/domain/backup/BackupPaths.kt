@@ -47,14 +47,14 @@ data class RestoreOutcome(
     val missingFileCount: Int,
 ) {
     fun userMessage(): String {
-        val head = "已恢复 ${manifest.bookCount} 本书、${manifest.noteCount} 则笔记、${manifest.annotationCount} 条划线。"
+        val head = "已恢复 ${manifest.bookCount} 本书。"
         return when {
             oldCatalogOnly ->
-                head + " 这是目录 JSON，不含原书文件。请把书再导入一次。"
+                head + " 备份里没有书文件，请重新导入。"
             missingFileCount > 0 ->
-                head + " 已写入 $restoredFileCount 个文件，另有 $missingFileCount 个文件在包里缺失。"
+                head + " 有 $missingFileCount 个文件缺失。"
             else ->
-                head + " 已写入 $restoredFileCount 个书房文件。"
+                head
         }
     }
 }
