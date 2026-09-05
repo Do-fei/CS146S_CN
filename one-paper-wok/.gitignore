@@ -1,0 +1,34 @@
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+.venv/
+venv/
+/data/
+backend/data/
+.env
+*.egg-info/
+
+docs/manual/_shots/
+
+# Flutter
+app/.dart_tool/
+app/.idea/
+app/build/
+app/.flutter-plugins
+app/.flutter-plugins-dependencies
+app/ios/Pods/
+app/ios/.symlinks/
+app/android/.gradle/
+app/android/local.properties
+app/ios/Pods/
+app/ios/.symlinks/
+
+# Android delivery app
+android-app/.gradle/
+android-app/**/build/
+android-app/local.properties
+android-app/*.iml
+*.apk
+*.aab
+!dist/onepaper-0.1.0-delivery-trial-debug.apk
