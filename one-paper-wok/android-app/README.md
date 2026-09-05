@@ -1,0 +1,29 @@
+# 一纸书煲 · Android 客户交付版
+
+Kotlin + Jetpack Compose，本地优先。Flutter 目录 `../app` 已冻结为原型，不要在那边继续堆交付功能。
+
+包名暂定 `com.onepaper.app`（方案 v0.1）。minSdk 26。
+
+## 本机构建
+
+```bash
+# 在 android-app/ 下创建 local.properties
+echo "sdk.dir=$ANDROID_HOME" > local.properties
+
+./gradlew :domain:test
+./gradlew :app:assembleDebug
+```
+
+产物：`app/build/outputs/apk/debug/app-debug.apk`（不要提交）。
+
+## 范围
+
+- 导航只有书架 / 一纸 / 我的。食堂未入选，没有空入口。
+- 无登录。导入、阅读、笔记、导出、备份均在本地完成。
+- 回煲是 ChangeProposal 逐条审阅，不是整份重写。
+- AI 默认 `FakeAiProvider`：只导入一章时拒绝全书结论。
+- 印刷 OCR：ML Kit bundled 中文适配器 + Fake 夹具。手写必须校对。
+- EPUB 当前走抽出文本 + Locator（quote / progression）。Readium Navigator 仍待目标真机。
+- PDF 用系统 `PdfRenderer` 预览，不假装可重排。
+
+决策与限制见 `../docs/delivery/`。

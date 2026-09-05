@@ -1,4 +1,12 @@
-# 一纸读书煲 One Paper Wok
+# 一纸书煲 OnePaper
+
+客户交付版是 **Kotlin / Compose 本地优先安卓应用**：[`android-app/`](android-app/)。决策与范围见 [`docs/delivery/`](docs/delivery/)。
+
+下面的 Flutter 客户端 + 强制登录后端是**已冻结的原型**，只作隐喻与流程对照，不要当交付骨架继续修补。
+
+---
+
+# 一纸读书煲 One Paper Wok（历史原型）
 
 一个有趣的精神庇护所：把实体书扫进锅里，用 OCR + AI 慢炖成可搜索电子书和「一纸项目」，再把手写批注回锅加料。数据跟账号走，换设备登录即可同步。
 
@@ -78,8 +86,10 @@ SQLite 只能单进程写，镜像里固定 `--workers 1`，也不要给这个�
 
 ```
 one-paper-wok/
-├── backend/     FastAPI（含 Dockerfile / railway.toml）
-├── app/         Flutter 客户端
+├── android-app/  交付版（Kotlin + Compose，local-first）
+├── docs/delivery 方案 v0.1 决策 / ADR / 测试与限制
+├── backend/      原型 FastAPI（含 Dockerfile / railway.toml）
+├── app/          冻结的 Flutter 原型
 └── README.md
 ```
 
