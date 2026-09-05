@@ -4,7 +4,8 @@ __pycache__/
 .ruff_cache/
 .venv/
 venv/
-data/
+/data/
+backend/data/
 .env
 *.egg-info/
 
