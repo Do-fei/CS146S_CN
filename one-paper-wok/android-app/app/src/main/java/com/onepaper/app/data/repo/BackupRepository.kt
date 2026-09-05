@@ -56,7 +56,7 @@ class BackupRepository @Inject constructor(
                     bookCount = backupDao.allBooks().size,
                     noteCount = backupDao.allNotes().size,
                     projectCount = backupDao.allProjects().size,
-                    includesTokens = false,
+                    includesTokens = false, // DeepSeek Key 在 EncryptedSharedPreferences，不在此包
                     includesPrivateNotes = true,
                 ),
             ),

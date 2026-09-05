@@ -81,6 +81,7 @@ dependencies {
     implementation(libs.camerax.view)
     implementation(libs.work.runtime)
     implementation(libs.mlkit.chinese)
+    implementation(libs.security.crypto)
     debugImplementation(libs.androidx.compose.ui.tooling)
     debugImplementation(libs.compose.ui.test.manifest)
     testImplementation(libs.junit)

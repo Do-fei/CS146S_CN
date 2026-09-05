@@ -26,6 +26,7 @@ import androidx.compose.material.icons.outlined.CameraAlt
 import androidx.compose.material.icons.outlined.Description
 import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material.icons.outlined.PhotoLibrary
+import androidx.compose.material.icons.outlined.Restaurant
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -54,9 +55,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.Image
+import android.content.Intent
+import android.net.Uri
+import com.onepaper.app.AppConstants
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.onepaper.app.ui.components.Banner
@@ -142,6 +147,12 @@ fun HomePager(
                 NavigationBarItem(
                     selected = tab == 2,
                     onClick = { tab = 2 },
+                    icon = { Icon(Icons.Outlined.Restaurant, null) },
+                    label = { Text("食堂") },
+                )
+                NavigationBarItem(
+                    selected = tab == 3,
+                    onClick = { tab = 3 },
                     icon = { Icon(Icons.Outlined.Person, null) },
                     label = { Text("我的") },
                 )
@@ -151,6 +162,7 @@ fun HomePager(
         when (tab) {
             0 -> ShelfPane(Modifier.padding(padding), onOpenBook, onCapture, onTask)
             1 -> PapersPane(Modifier.padding(padding), onOpenProject, onOpenNote)
+            2 -> CanteenPane(Modifier.padding(padding), onBackup)
             else -> MePane(Modifier.padding(padding), onSettings, onBackup, onOpenNote)
         }
     }
@@ -294,7 +306,35 @@ private fun MePane(
         Button(onClick = onBackup, modifier = Modifier.fillMaxWidth()) { Text("备份与恢复") }
         OutlinedButton(onClick = onSettings, modifier = Modifier.fillMaxWidth()) { Text("设置") }
         OutlinedButton(onClick = { onOpenNote("new") }, modifier = Modifier.fillMaxWidth()) { Text("写一则笔记") }
-        Text("食堂未进入首版，请用系统分享或导出。", style = MaterialTheme.typography.bodySmall)
+        Text("食堂本版只有预告和分享。反馈：设置 → 反馈。", style = MaterialTheme.typography.bodySmall)
+    }
+}
+
+@Composable
+private fun CanteenPane(modifier: Modifier, onBackup: () -> Unit) {
+    val context = LocalContext.current
+    Column(
+        modifier
+            .padding(24.dp)
+            .verticalScroll(rememberScrollState()),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        Text("一纸食堂", style = MaterialTheme.typography.headlineSmall)
+        Banner("下一版才会开放发布、列表和互动。本页没有假动态。")
+        Text("下一版计划：受邀群里分享一纸、收藏与评论、撤回，以及最小管理。这一版先把成果带走。")
+        Button(
+            onClick = {
+                val send = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
+                    type = "text/plain"
+                    putExtra(android.content.Intent.EXTRA_TEXT, com.onepaper.app.AppConstants.SHARE_BLURB)
+                }
+                context.startActivity(android.content.Intent.createChooser(send, "分享一纸书煲"))
+            },
+            modifier = Modifier.fillMaxWidth(),
+        ) { Text("系统分享") }
+        OutlinedButton(onClick = onBackup, modifier = Modifier.fillMaxWidth()) {
+            Text("导出 / 备份")
+        }
     }
 }
 
@@ -469,15 +509,40 @@ fun SettingsScreen(onBack: () -> Unit, vm: SettingsViewModel = hiltViewModel()) 
     val notes by vm.uploadNotes.collectAsStateWithLifecycle()
     val dark by vm.dark.collectAsStateWithLifecycle()
     val usage by vm.usage.collectAsStateWithLifecycle()
+    val masked by vm.maskedKey.collectAsStateWithLifecycle()
+    val saved by vm.savedMessage.collectAsStateWithLifecycle()
+    var keyDraft by remember { mutableStateOf("") }
+    val context = LocalContext.current
     Scaffold(topBar = { TopAppBar(title = { Text("设置") }, navigationIcon = { TextButton(onClick = onBack) { Text("返回") } }) }) { padding ->
-        Column(Modifier.padding(padding).padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Column(
+            Modifier
+                .padding(padding)
+                .padding(16.dp)
+                .verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Text("DeepSeek（我们不提供 AI 服务）", style = MaterialTheme.typography.titleMedium)
+            Text("填你自己的 API Key。提问时只发送当前选区或检索片段到 DeepSeek，费用由你的 Key 承担。Key 存在本机密钥库，不进备份。")
+            if (masked != null) Text("已保存：$masked")
+            OutlinedTextField(
+                value = keyDraft,
+                onValueChange = { keyDraft = it },
+                label = { Text("DeepSeek API Key") },
+                visualTransformation = PasswordVisualTransformation(),
+                modifier = Modifier.fillMaxWidth(),
+            )
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Button(onClick = { vm.saveDeepSeekKey(keyDraft); keyDraft = "" }) { Text("保存") }
+                OutlinedButton(onClick = { vm.clearDeepSeekKey(); keyDraft = "" }) { Text("清除") }
+            }
+            saved?.let { Banner(it) }
             Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
-                Text("允许上传指定书页（默认关）")
+                Text("提问时允许发送指定书页/选区")
                 Spacer(Modifier.weight(1f))
                 Switch(checked = pages, onCheckedChange = vm::setUploadPages)
             }
             Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
-                Text("允许上传私人笔记（默认关）")
+                Text("回煲时附带私人笔记（默认关）")
                 Spacer(Modifier.weight(1f))
                 Switch(checked = notes, onCheckedChange = vm::setUploadNotes)
             }
@@ -486,9 +551,19 @@ fun SettingsScreen(onBack: () -> Unit, vm: SettingsViewModel = hiltViewModel()) 
                 Spacer(Modifier.weight(1f))
                 Switch(checked = dark, onCheckedChange = vm::setDark)
             }
+            Button(
+                onClick = {
+                    val intent = Intent(Intent.ACTION_SENDTO).apply {
+                        data = Uri.parse("mailto:${AppConstants.FEEDBACK_EMAIL}")
+                        putExtra(Intent.EXTRA_SUBJECT, "一纸书煲反馈")
+                    }
+                    context.startActivity(intent)
+                },
+                modifier = Modifier.fillMaxWidth(),
+            ) { Text("反馈（${AppConstants.FEEDBACK_EMAIL}）") }
             Text("本地占用约 ${usage / 1024} KB")
             Text("一纸书煲 / OnePaper  0.1.0-delivery")
-            Text("生产 Key 不进 APK。无额度时仍可阅读、笔记、导出。")
+            Text("无 Key 时阅读、笔记、导出仍可用。印刷 OCR 走端侧 ML Kit。")
         }
     }
 }

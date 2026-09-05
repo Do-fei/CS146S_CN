@@ -16,6 +16,7 @@ import com.onepaper.app.data.local.PositionDao
 import com.onepaper.app.data.local.ProjectDao
 import com.onepaper.app.data.local.ProposalDao
 import com.onepaper.app.data.local.SectionDao
+import com.onepaper.app.data.ai.RoutingAiProvider
 import com.onepaper.app.data.ocr.MlKitOcrEngine
 import com.onepaper.domain.ai.AiProvider
 import com.onepaper.domain.ai.FakeAiProvider
@@ -56,7 +57,11 @@ object AppModule {
 
     @Provides
     @Singleton
-    fun aiProvider(): AiProvider = FakeAiProvider()
+    fun fakeAiProvider(): FakeAiProvider = FakeAiProvider()
+
+    @Provides
+    @Singleton
+    fun aiProvider(router: RoutingAiProvider): AiProvider = router
 
     @Provides
     @Singleton

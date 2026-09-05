@@ -6,7 +6,7 @@
 4. **自动翻页检测拍摄** 未实测，不承诺。
 5. **Readium 官方 Navigator** 尚未在目标真机关闭 P1 门禁。当前 EPUB 走抽出文本 + Locator（quote/progression）。
 6. **无实时同步、无云备份账号。** 换机必须先导出完整备份。
-7. **食堂** 首版没有。请用系统分享或导出。
-8. **AI** 默认 Fake Provider；未配置自有后端时不会产生全书幻觉式「已读完」结论。
+7. **食堂** 本版只有预告和系统分享，没有社区。
+8. **AI** 使用用户自己的 DeepSeek Key；未填写时走 Fake。我们不提供模型服务。印刷 OCR 不是 DeepSeek。
 9. **ML Kit bundled** 增加包体（debug 全 ABI 约 60MB+）；无 GMS 真机准确率待测。
 10. **16KB 页大小 / Pdfium `.so`：** 本轮不链入开源 Pdfium，避免未核 ABI 的崩溃。

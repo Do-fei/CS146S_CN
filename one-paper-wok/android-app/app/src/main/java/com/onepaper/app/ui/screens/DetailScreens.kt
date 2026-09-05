@@ -146,11 +146,15 @@ fun CompanionScreen(
     vm: CompanionVm = hiltViewModel(),
 ) {
     val items by vm.messages.collectAsStateWithLifecycle()
+    val usingDeepSeek by vm.usingDeepSeek.collectAsStateWithLifecycle()
     var draft by remember { mutableStateOf("") }
     var quote by remember { mutableStateOf("") }
     Scaffold(topBar = { TopAppBar(title = { Text("AI 搭子") }, navigationIcon = { TextButton(onClick = onBack) { Text("返回") } }) }) { padding ->
         Column(Modifier.padding(padding).padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Banner("离线时此面板会说明原因。当前内置 Fake Provider，只依据已导入范围。")
+            Banner(
+                if (usingDeepSeek) "将用你保存在本机的 DeepSeek Key 提问，只发送当前证据片段。"
+                else "未填写 DeepSeek Key，当前走本地说明。阅读不受影响。",
+            )
             items.forEach { msg ->
                 Card(Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
                     Column(Modifier.padding(12.dp)) {

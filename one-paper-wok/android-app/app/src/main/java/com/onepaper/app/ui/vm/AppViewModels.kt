@@ -16,6 +16,7 @@ import com.onepaper.app.data.local.ProjectEntity
 import com.onepaper.app.data.local.ProjectSectionEntity
 import com.onepaper.app.data.local.ProposalItemEntity
 import com.onepaper.app.data.prefs.UserPrefs
+import com.onepaper.app.data.secure.SecretStore
 import com.onepaper.app.data.repo.BackupRepository
 import com.onepaper.app.data.repo.CompanionRepository
 import com.onepaper.app.data.repo.ImportOutcome
@@ -245,10 +246,12 @@ class RecookViewModel @Inject constructor(
 class CompanionVm @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val companion: CompanionRepository,
+    secrets: SecretStore,
 ) : ViewModel() {
     val bookId: String = checkNotNull(savedStateHandle["bookId"])
     val conversationId = MutableStateFlow<String?>(null)
     val messages = MutableStateFlow<List<MessageEntity>>(emptyList())
+    val usingDeepSeek = MutableStateFlow(secrets.hasDeepSeekKey())
     val offline = MutableStateFlow(true)
 
     init {
@@ -300,12 +303,15 @@ class NoteViewModel @Inject constructor(
 class SettingsViewModel @Inject constructor(
     private val prefs: UserPrefs,
     private val store: PrivateStore,
+    private val secrets: SecretStore,
     application: Application,
 ) : ViewModel() {
     val uploadPages = prefs.uploadPagesAllowed.stateIn(viewModelScope, SharingStarted.Eagerly, false)
     val uploadNotes = prefs.uploadNotesAllowed.stateIn(viewModelScope, SharingStarted.Eagerly, false)
     val dark = prefs.darkTheme.stateIn(viewModelScope, SharingStarted.Eagerly, false)
     val usage = MutableStateFlow(0L)
+    val maskedKey = MutableStateFlow(secrets.maskedDeepSeekKey())
+    val savedMessage = MutableStateFlow<String?>(null)
 
     init {
         usage.value = store.usageBytes()
@@ -315,6 +321,18 @@ class SettingsViewModel @Inject constructor(
     fun setUploadPages(v: Boolean) = viewModelScope.launch { prefs.setUploadPages(v) }
     fun setUploadNotes(v: Boolean) = viewModelScope.launch { prefs.setUploadNotes(v) }
     fun setDark(v: Boolean) = viewModelScope.launch { prefs.setDarkTheme(v) }
+
+    fun saveDeepSeekKey(raw: String) {
+        secrets.setDeepSeekKey(raw)
+        maskedKey.value = secrets.maskedDeepSeekKey()
+        savedMessage.value = if (secrets.hasDeepSeekKey()) "已保存在本机密钥库，不进备份。" else "已清除。"
+    }
+
+    fun clearDeepSeekKey() {
+        secrets.setDeepSeekKey(null)
+        maskedKey.value = null
+        savedMessage.value = "已清除。"
+    }
 }
 
 @HiltViewModel

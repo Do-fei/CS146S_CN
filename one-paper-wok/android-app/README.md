@@ -21,7 +21,9 @@ echo "sdk.dir=$ANDROID_HOME" > local.properties
 - 导航只有书架 / 一纸 / 我的。食堂未入选，没有空入口。
 - 无登录。导入、阅读、笔记、导出、备份均在本地完成。
 - 回煲是 ChangeProposal 逐条审阅，不是整份重写。
-- AI 默认 `FakeAiProvider`：只导入一章时拒绝全书结论。
+- AI：设置里填自己的 DeepSeek Key（本机密钥库）。不填则 Fake；只导入一章时拒绝全书结论。
+- 食堂：底栏预告页 + 系统分享，无社区后端。
+- 反馈：`nuannuan.dean@gmail.com`
 - 印刷 OCR：ML Kit bundled 中文适配器 + Fake 夹具。手写必须校对。
 - EPUB 当前走抽出文本 + Locator（quote / progression）。Readium Navigator 仍待目标真机。
 - PDF 用系统 `PdfRenderer` 预览，不假装可重排。
