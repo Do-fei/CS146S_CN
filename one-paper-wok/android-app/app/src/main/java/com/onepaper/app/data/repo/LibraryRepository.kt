@@ -64,10 +64,10 @@ class LibraryRepository @Inject constructor(
     suspend fun pagesOf(editionId: String) = pages.forEdition(editionId)
     fun observeChapters(editionId: String) = chapters.observeForEdition(editionId)
 
-    suspend fun ensureSeeded() {
-        if (books.activeCount() > 0) return
+    suspend fun ensureSeeded(): ImportOutcome? {
+        if (books.activeCount() > 0) return null
         val text = context.assets.open("samples/excerpt.txt").bufferedReader().use { it.readText() }
-        importPlainText(
+        return importPlainText(
             title = "一纸书煲 · 授权摘录样本",
             author = "项目组",
             body = text,

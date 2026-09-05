@@ -307,12 +307,10 @@ fun BookScreen(
     onOpenPages: (String) -> Unit,
     onBack: () -> Unit,
     vm: BookViewModel = hiltViewModel(),
-    papers: PapersViewModel = hiltViewModel(),
 ) {
     val book by vm.book.collectAsStateWithLifecycle()
     val editionId by vm.editionId.collectAsStateWithLifecycle()
-    val projects by papers.projectsFlow.collectAsStateWithLifecycle()
-    val project = projects.firstOrNull { it.bookId == vm.bookId }
+    val project = vm.projectId.collectAsStateWithLifecycle().value
     Scaffold(topBar = {
         TopAppBar(title = { Text(book?.title ?: "书") }, navigationIcon = {
             TextButton(onClick = onBack) { Text("返回") }
@@ -330,7 +328,7 @@ fun BookScreen(
                 Text("AI 搭子")
             }
             OutlinedButton(
-                onClick = { project?.let { onOpenProject(it.id) } },
+                onClick = { project?.let(onOpenProject) },
                 enabled = project != null,
                 modifier = Modifier.fillMaxWidth(),
             ) { Text("一纸项目") }

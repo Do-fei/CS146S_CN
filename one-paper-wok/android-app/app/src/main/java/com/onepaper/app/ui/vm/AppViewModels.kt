@@ -44,6 +44,7 @@ import javax.inject.Inject
 @HiltViewModel
 class ShelfViewModel @Inject constructor(
     private val library: LibraryRepository,
+    private val projects: ProjectRepository,
     prefs: UserPrefs,
 ) : ViewModel() {
     val books: StateFlow<List<BookEntity>> = library.observeBooks()
@@ -56,7 +57,13 @@ class ShelfViewModel @Inject constructor(
         .stateIn(viewModelScope, SharingStarted.Eagerly, null as Boolean?)
 
     init {
-        viewModelScope.launch { library.ensureSeeded() }
+        viewModelScope.launch {
+            val seeded = library.ensureSeeded()
+            if (seeded != null) {
+                val chapter = library.chaptersOf(seeded.editionId).firstOrNull()?.plainText.orEmpty()
+                projects.ensureForBook(seeded.bookId, "一纸书煲 · 授权摘录样本", chapter)
+            }
+        }
     }
 
     fun search(q: String) {
@@ -74,6 +81,7 @@ class BookViewModel @Inject constructor(
     val bookId: String = checkNotNull(savedStateHandle["bookId"])
     val book = MutableStateFlow<BookEntity?>(null)
     val editionId = MutableStateFlow<String?>(null)
+    val projectId = MutableStateFlow<String?>(null)
     val deleteNotice = MutableStateFlow("删除会软删书架条目，原文件仍在私有目录，可用备份恢复前请先导出。")
 
     init {
@@ -81,7 +89,7 @@ class BookViewModel @Inject constructor(
             book.value = library.book(bookId)
             editionId.value = library.editionsOf(bookId).firstOrNull()?.id
             val seed = editionId.value?.let { library.chaptersOf(it).firstOrNull()?.plainText }.orEmpty()
-            projects.ensureForBook(bookId, book.value?.title ?: "一纸", seed)
+            projectId.value = projects.ensureForBook(bookId, book.value?.title ?: "一纸", seed).id
         }
     }
 
@@ -261,7 +269,7 @@ class NoteViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val notes: NoteRepository,
 ) : ViewModel() {
-    val noteId: String? = savedStateHandle["noteId"]?.takeIf { it != "new" }
+    val noteId: String? = savedStateHandle.get<String>("noteId")?.takeIf { it != "new" }
     val note = MutableStateFlow<NoteEntity?>(null)
     private val persistedId = MutableStateFlow(noteId)
 
