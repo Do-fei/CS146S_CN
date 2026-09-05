@@ -14,6 +14,7 @@ data class BookEntity(
     val coverage: String,
     val createdAt: Long,
     val deletedAt: Long? = null,
+    val coverRelPath: String? = null,
 )
 
 @Serializable
@@ -50,6 +51,9 @@ data class PageEntity(
     val imageRelPath: String?,
     val ocrText: String?,
     val recognitionDraft: String?,
+    val embeddedText: String? = null,
+    val hasTextLayer: Boolean = false,
+    val ocrBoxesJson: String? = null,
 )
 
 @Serializable

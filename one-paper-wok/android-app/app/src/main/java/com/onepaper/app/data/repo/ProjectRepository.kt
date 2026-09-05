@@ -46,9 +46,11 @@ class ProjectRepository @Inject constructor(
         projects.upsert(entity)
         sections.upsertAll(
             listOf(
-                ProjectSectionEntity(UUID.randomUUID().toString(), projectId, "s-essence", SectionKind.ESSENCE.name, "精华", seedBody.take(280).ifBlank { "待从已导入范围整理。" }, 1, false, 0),
-                ProjectSectionEntity(UUID.randomUUID().toString(), projectId, "s-me", SectionKind.UNDERSTANDING.name, "我的理解", "", 1, false, 1),
-                ProjectSectionEntity(UUID.randomUUID().toString(), projectId, "s-explore", SectionKind.EXPLORE.name, "待探索", "", 1, false, 2),
+                ProjectSectionEntity(UUID.randomUUID().toString(), projectId, "s-excerpt", SectionKind.EXCERPT.name, "原书摘录", seedBody.take(280), 1, false, 0),
+                ProjectSectionEntity(UUID.randomUUID().toString(), projectId, "s-essence", SectionKind.ESSENCE.name, "精华", "待从已导入范围整理。", 1, false, 1),
+                ProjectSectionEntity(UUID.randomUUID().toString(), projectId, "s-me", SectionKind.UNDERSTANDING.name, "我的理解", "", 1, false, 2),
+                ProjectSectionEntity(UUID.randomUUID().toString(), projectId, "s-explore", SectionKind.EXPLORE.name, "待探索", "", 1, false, 3),
+                ProjectSectionEntity(UUID.randomUUID().toString(), projectId, "s-log", SectionKind.CHANGELOG.name, "更新记录", "", 1, false, 4),
             ),
         )
         return entity

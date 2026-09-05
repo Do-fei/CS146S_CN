@@ -17,4 +17,13 @@ object ExportShare {
         }
         context.startActivity(Intent.createChooser(send, title))
     }
+
+    fun sendText(context: Context, text: String, mime: String, title: String) {
+        val send = Intent(Intent.ACTION_SEND).apply {
+            type = mime
+            putExtra(Intent.EXTRA_TEXT, text)
+            putExtra(Intent.EXTRA_SUBJECT, title)
+        }
+        context.startActivity(Intent.createChooser(send, title))
+    }
 }

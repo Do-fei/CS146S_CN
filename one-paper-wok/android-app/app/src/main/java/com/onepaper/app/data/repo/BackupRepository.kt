@@ -16,8 +16,12 @@ import com.onepaper.app.data.local.ProjectSectionEntity
 import com.onepaper.app.data.local.SectionDao
 import android.content.ContentResolver
 import android.net.Uri
+import com.onepaper.app.data.local.AnnotationDao
 import com.onepaper.domain.backup.BackupManifest
 import com.onepaper.domain.backup.BackupPolicy
+import com.onepaper.domain.paper.PaperDraftInput
+import com.onepaper.domain.paper.PaperShareDraft
+import com.onepaper.domain.recook.SectionKind
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
@@ -45,6 +49,7 @@ class BackupRepository @Inject constructor(
     private val notes: NoteDao,
     private val projects: ProjectDao,
     private val sections: SectionDao,
+    private val annotations: AnnotationDao,
     private val store: PrivateStore,
 ) {
     private val json = Json { prettyPrint = true; ignoreUnknownKeys = true }
@@ -107,22 +112,41 @@ class BackupRepository @Inject constructor(
         sections.upsertAll(parsed.sections)
     }
 
-    suspend fun exportProjectMarkdown(projectId: String): File {
-        val project = projects.get(projectId)
-        val body = buildString {
-            appendLine("# ${project?.title ?: "一纸项目"}")
-            appendLine()
-            appendLine("_导出默认不含阅读器私人批注。_")
-            appendLine()
-            sections.forProject(projectId).forEach { section ->
-                appendLine("## ${section.title}")
-                appendLine()
-                appendLine(section.body)
-                appendLine()
-            }
-        }
+    suspend fun exportProjectMarkdown(projectId: String, includePrivateNotes: Boolean = false): File {
+        val draft = paperDraft(projectId, includePrivateNotes)
         val file = store.exportFile("onepaper-${projectId.take(8)}.md")
-        file.writeText(body)
+        file.writeText(PaperShareDraft.markdown(draft))
         return file
+    }
+
+    suspend fun exportProjectPlain(projectId: String, includePrivateNotes: Boolean): File {
+        val draft = paperDraft(projectId, includePrivateNotes)
+        val file = store.exportFile("onepaper-${projectId.take(8)}.txt")
+        file.writeText(PaperShareDraft.plain(draft))
+        return file
+    }
+
+    suspend fun paperDraft(projectId: String, includePrivateNotes: Boolean): PaperDraftInput {
+        val project = projects.get(projectId)
+        val rows = sections.forProject(projectId)
+        val quotes = project?.bookId?.let { annotations.forBook(it) }?.map { it.quote }?.filter { it.isNotBlank() }.orEmpty()
+        val excerpt = rows.firstOrNull { it.kind == SectionKind.EXCERPT.name }?.body.orEmpty()
+        val source = (listOf(excerpt).filter { it.isNotBlank() } + quotes).distinct()
+        val private = if (includePrivateNotes) {
+            notes.all().filter { it.bookId == project?.bookId }.map { it.userDraft }.filter { it.isNotBlank() }
+        } else {
+            emptyList()
+        }
+        return PaperDraftInput(
+            title = project?.title ?: "一纸",
+            sourceQuotes = source,
+            aiSections = rows.filter { it.kind == SectionKind.ESSENCE.name || it.kind == SectionKind.CHAPTER.name }
+                .map { it.title to it.body },
+            userSections = rows.filter { it.kind == SectionKind.UNDERSTANDING.name }
+                .map { it.title to it.body },
+            explore = rows.firstOrNull { it.kind == SectionKind.EXPLORE.name }?.body.orEmpty(),
+            changelog = rows.firstOrNull { it.kind == SectionKind.CHANGELOG.name }?.body.orEmpty(),
+            privateNotes = private,
+        )
     }
 }

@@ -22,7 +22,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         MessageEntity::class,
         JobEntity::class,
     ],
-    version = 2,
+    version = 3,
     exportSchema = false,
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -46,6 +46,15 @@ abstract class AppDatabase : RoomDatabase() {
                 db.execSQL("ALTER TABLE messages ADD COLUMN quote TEXT")
                 db.execSQL("ALTER TABLE messages ADD COLUMN locatorJson TEXT")
                 db.execSQL("ALTER TABLE messages ADD COLUMN editionId TEXT")
+            }
+        }
+
+        val MIGRATION_2_3 = object : Migration(2, 3) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE books ADD COLUMN coverRelPath TEXT")
+                db.execSQL("ALTER TABLE pages ADD COLUMN embeddedText TEXT")
+                db.execSQL("ALTER TABLE pages ADD COLUMN hasTextLayer INTEGER NOT NULL DEFAULT 0")
+                db.execSQL("ALTER TABLE pages ADD COLUMN ocrBoxesJson TEXT")
             }
         }
     }

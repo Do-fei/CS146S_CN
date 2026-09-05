@@ -63,6 +63,9 @@ fun OnePaperRoot(modifier: Modifier = Modifier) {
                 onCapture = { nav.navigate(Routes.Capture) },
                 onOpenProject = { nav.navigate(Routes.project(it)) },
                 onOpenNote = { nav.navigate(Routes.note(it)) },
+                onOpenLocator = { editionId, quote, href, page ->
+                    nav.navigate(Routes.reader(editionId, quote, href, page))
+                },
                 onSettings = { nav.navigate(Routes.Settings) },
                 onBackup = { nav.navigate(Routes.Backup) },
                 onTask = { nav.navigate(Routes.task(it)) },

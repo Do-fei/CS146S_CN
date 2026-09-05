@@ -47,55 +47,6 @@ import com.onepaper.domain.recook.ProposalDecision
 import java.io.File
 
 @Composable
-fun ProjectScreen(
-    onRecook: (String) -> Unit,
-    onExport: (String) -> Unit,
-    onBack: () -> Unit,
-    vm: ProjectViewModel = hiltViewModel(),
-) {
-    val project by vm.project.collectAsStateWithLifecycle()
-    val sections by vm.sections.collectAsStateWithLifecycle()
-    val proposalId by vm.proposalId.collectAsStateWithLifecycle()
-    LaunchedEffect(Unit) { vm.refresh() }
-    PaperScaffold(title = project?.title ?: "一纸", onBack = onBack) { padding ->
-        Column(
-            Modifier.padding(padding).padding(16.dp).verticalScroll(rememberScrollState()),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            Text("用户编辑会锁定该段，再生成不会覆盖。", style = MaterialTheme.typography.bodyMedium)
-            sections.forEach { section ->
-                var body by remember(section.id, section.revision) { mutableStateOf(section.body) }
-                PaperCard(Modifier.fillMaxWidth()) {
-                    Text(section.title, style = MaterialTheme.typography.titleMedium)
-                    LayerChip(if (section.userLocked) KnowledgeLayer.USER else KnowledgeLayer.AI)
-                    QuietField(
-                        value = body,
-                        onValueChange = { body = it },
-                        modifier = Modifier.fillMaxWidth(),
-                        minLines = 3,
-                    )
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-                        QuietButton("保存为我的理解", { vm.saveSection(section.sectionId, body) }, Modifier.weight(1f), glyph = ZenGlyph.Brush, tone = QuietTone.Ink)
-                        QuietButton("再生成此段", { vm.regenerate(section.sectionId) }, Modifier.weight(1f), enabled = !section.userLocked, glyph = ZenGlyph.Chat)
-                    }
-                }
-            }
-            QuietButton(
-                "回煲（生成建议，不直接覆盖）",
-                { vm.recook(listOf("根据笔记回煲")) },
-                Modifier.fillMaxWidth(),
-                glyph = ZenGlyph.Wok,
-                tone = QuietTone.Ink,
-            )
-            if (proposalId != null) {
-                QuietButton("打开审阅", { onRecook(proposalId!!) }, Modifier.fillMaxWidth(), glyph = ZenGlyph.Sheet)
-            }
-            QuietButton("导出", { onExport(vm.projectId) }, Modifier.fillMaxWidth(), glyph = ZenGlyph.Share)
-        }
-    }
-}
-
-@Composable
 fun RecookScreen(onBack: () -> Unit, vm: RecookViewModel = hiltViewModel()) {
     val items by vm.items.collectAsStateWithLifecycle()
     val current by vm.currentBodies.collectAsStateWithLifecycle()
@@ -272,18 +223,47 @@ fun HandwritingScreen(onBack: () -> Unit, vm: NoteViewModel = hiltViewModel()) {
 fun ExportScreen(onBack: () -> Unit, vm: BackupViewModel = hiltViewModel(), projectVm: ProjectViewModel = hiltViewModel()) {
     val message by vm.message.collectAsStateWithLifecycle()
     val filePath by vm.filePath.collectAsStateWithLifecycle()
+    val markdown by vm.paperMarkdown.collectAsStateWithLifecycle()
+    val plain by vm.paperPlain.collectAsStateWithLifecycle()
+    val includePrivate by vm.includePrivate.collectAsStateWithLifecycle()
     val context = LocalContext.current
-    PaperScaffold(title = "导出预览", onBack = onBack) { padding ->
+    LaunchedEffect(projectVm.projectId) { vm.loadPaper(projectVm.projectId) }
+    PaperScaffold(title = "出煲", onBack = onBack) { padding ->
         Column(
-            Modifier.padding(padding).padding(16.dp),
+            Modifier.padding(padding).padding(16.dp).verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Text("默认不含阅读器私人批注。可勾选范围后导出 Markdown。", style = MaterialTheme.typography.bodyMedium)
+            Text("像一张能发出去的纸。默认不含私人批注。", style = MaterialTheme.typography.bodyMedium)
+            Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                Text("附带私人笔记", modifier = Modifier.weight(1f))
+                androidx.compose.material3.Switch(
+                    checked = includePrivate,
+                    onCheckedChange = { vm.setIncludePrivate(projectVm.projectId, it) },
+                )
+            }
+            PaperCard(Modifier.fillMaxWidth()) {
+                Text(markdown.ifBlank { "正在出煲…" }, style = MaterialTheme.typography.bodyMedium)
+            }
             QuietButton("导出 Markdown", { vm.exportMarkdown(projectVm.projectId) }, Modifier.fillMaxWidth(), glyph = ZenGlyph.Sheet, tone = QuietTone.Ink)
+            QuietButton("导出纯文本", { vm.exportPlain(projectVm.projectId) }, Modifier.fillMaxWidth(), glyph = ZenGlyph.Share)
+            QuietButton(
+                "分享 Markdown",
+                { ExportShare.sendText(context, markdown, "text/markdown", "分享一纸") },
+                Modifier.fillMaxWidth(),
+                glyph = ZenGlyph.Share,
+                enabled = markdown.isNotBlank(),
+            )
+            QuietButton(
+                "分享纯文本",
+                { ExportShare.sendText(context, plain, "text/plain", "分享一纸") },
+                Modifier.fillMaxWidth(),
+                glyph = ZenGlyph.Share,
+                enabled = plain.isNotBlank(),
+            )
             if (filePath != null) {
                 QuietButton(
-                    "系统分享 Markdown",
-                    { ExportShare.sendFile(context, File(filePath!!), "text/markdown", "分享一纸") },
+                    "系统分享文件",
+                    { ExportShare.sendFile(context, File(filePath!!), "text/plain", "分享一纸") },
                     Modifier.fillMaxWidth(),
                     glyph = ZenGlyph.Share,
                 )

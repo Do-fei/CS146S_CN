@@ -4,10 +4,13 @@ import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import com.onepaper.app.data.files.PrivateStore
+import com.onepaper.app.data.image.CoverFactory
+import com.onepaper.app.data.importing.EpubMeta
 import com.onepaper.app.data.importing.EpubTextExtractor
 import com.onepaper.app.data.importing.ImportType
 import com.onepaper.app.data.importing.PdfGuard
 import com.onepaper.app.data.importing.PdfPages
+import com.onepaper.domain.pdf.PdfTextLayer
 import com.onepaper.app.data.local.AnnotationDao
 import com.onepaper.app.data.local.AnnotationEntity
 import com.onepaper.app.data.local.BookDao
@@ -63,6 +66,7 @@ class LibraryRepository @Inject constructor(
     private val positions: PositionDao,
     private val jobs: JobDao,
     private val store: PrivateStore,
+    private val covers: CoverFactory,
 ) {
     private val machine = JobStateMachine()
 
@@ -88,6 +92,7 @@ class LibraryRepository @Inject constructor(
     }
 
     suspend fun book(id: String) = books.get(id)
+    suspend fun activeBooks() = books.active()
     suspend fun editionsOf(bookId: String) = editions.forBook(bookId)
     suspend fun edition(id: String) = editions.get(id)
     suspend fun chaptersOf(editionId: String) = chapters.forEdition(editionId)
@@ -184,6 +189,7 @@ class LibraryRepository @Inject constructor(
                 ),
             ),
             pageCount = 1,
+            coverRelPath = covers.fromTitle(editionId, title, author),
         )
         return ImportOutcome(bookId, editionId)
     }
@@ -218,6 +224,7 @@ class LibraryRepository @Inject constructor(
                 ),
             ),
             pageCount = 1,
+            coverRelPath = covers.fromTitle(editionId, prettyTitle(name, ""), ""),
         )
         return ImportOutcome(bookId, editionId)
     }
@@ -237,16 +244,21 @@ class LibraryRepository @Inject constructor(
             return ImportOutcome("", editionId, "EPUB 里没有可抽出的文本")
         }
         val bookId = UUID.randomUUID().toString()
+        val meta = EpubMeta.read(file)
         val title = if (name.contains("onepaper-guide")) {
             "一纸书煲使用说明书"
         } else {
-            extracted.first().title.ifBlank { prettyTitle(name, ".epub") }
+            meta.title?.takeIf { it.isNotBlank() }
+                ?: extracted.first().title.ifBlank { prettyTitle(name, ".epub") }
         }
+        val author = meta.author.orEmpty()
+        val cover = meta.coverBytes?.let { covers.writeBytes(editionId, it) }
+            ?: covers.fromTitle(editionId, title, author)
         persistImported(
             bookId = bookId,
             editionId = editionId,
             title = title,
-            author = "",
+            author = author,
             coverage = if (markExcerpt) Coverage.EXCERPT else coverage,
             kind = SourceKind.EPUB,
             originalName = name,
@@ -264,6 +276,7 @@ class LibraryRepository @Inject constructor(
                 )
             },
             pageCount = extracted.size,
+            coverRelPath = cover,
         )
         return ImportOutcome(bookId, editionId)
     }
@@ -280,10 +293,12 @@ class LibraryRepository @Inject constructor(
         }
         val pageCount = PdfPages.count(file)
         val bookId = UUID.randomUUID().toString()
+        val title = prettyTitle(name, ".pdf")
+        val layers = runCatching { PdfTextLayer.extractPages(file.readBytes(), pageCount) }.getOrDefault(emptyList())
         persistImported(
             bookId = bookId,
             editionId = editionId,
-            title = prettyTitle(name, ".pdf"),
+            title = title,
             author = "",
             coverage = if (markExcerpt) Coverage.EXCERPT else coverage,
             kind = SourceKind.PDF,
@@ -292,10 +307,12 @@ class LibraryRepository @Inject constructor(
             checksum = store.sha256(file),
             chapterList = emptyList(),
             pageCount = pageCount,
+            coverRelPath = covers.fromPdf(editionId, file) ?: covers.fromTitle(editionId, title, ""),
         )
         if (pageCount > 0) {
             pages.upsertAll(
                 (0 until pageCount).map { idx ->
+                    val layer = layers.getOrNull(idx)
                     PageEntity(
                         id = UUID.randomUUID().toString(),
                         editionId = editionId,
@@ -303,6 +320,8 @@ class LibraryRepository @Inject constructor(
                         imageRelPath = store.relative(file),
                         ocrText = null,
                         recognitionDraft = null,
+                        embeddedText = layer?.text.orEmpty(),
+                        hasTextLayer = layer?.hasTextOperators == true,
                     )
                 },
             )
@@ -348,6 +367,8 @@ class LibraryRepository @Inject constructor(
             checksum = store.sha256(dests.first()),
             chapterList = emptyList(),
             pageCount = dests.size,
+            coverRelPath = covers.writeBytes(editionId, dests.first().readBytes())
+                ?: covers.fromTitle(editionId, "自炊页 · ${dests.size} 张", ""),
         )
         pages.upsertAll(
             dests.mapIndexed { idx, file ->
@@ -378,6 +399,8 @@ class LibraryRepository @Inject constructor(
             checksum = store.sha256(file),
             chapterList = emptyList(),
             pageCount = 1,
+            coverRelPath = covers.writeBytes(editionId, file.readBytes())
+                ?: covers.fromTitle(editionId, name, ""),
         )
         pages.upsertAll(
             listOf(
@@ -406,6 +429,7 @@ class LibraryRepository @Inject constructor(
         checksum: String,
         chapterList: List<ChapterEntity>,
         pageCount: Int,
+        coverRelPath: String? = null,
     ) {
         books.upsert(
             BookEntity(
@@ -414,6 +438,7 @@ class LibraryRepository @Inject constructor(
                 author = author,
                 coverage = coverage.name,
                 createdAt = System.currentTimeMillis(),
+                coverRelPath = coverRelPath,
             ),
         )
         editions.upsert(
@@ -483,6 +508,54 @@ class LibraryRepository @Inject constructor(
     }
 
     suspend fun position(editionId: String) = positions.get(editionId)
+
+    suspend fun updateAuthor(bookId: String, author: String) {
+        val current = books.get(bookId) ?: return
+        books.upsert(current.copy(author = author.trim()))
+    }
+
+    suspend fun ensureCover(book: BookEntity): BookEntity {
+        if (!book.coverRelPath.isNullOrBlank()) return book
+        val edition = editions.forBook(book.id).firstOrNull() ?: return book
+        val file = store.file(edition.relativePath)
+        val cover = when (edition.sourceKind) {
+            "PDF" -> if (file.exists()) covers.fromPdf(edition.id, file) else null
+            "EPUB" -> if (file.exists()) {
+                EpubMeta.read(file).coverBytes?.let { covers.writeBytes(edition.id, it) }
+            } else {
+                null
+            }
+            "IMAGES" -> if (file.exists()) covers.writeBytes(edition.id, file.readBytes()) else null
+            else -> null
+        } ?: covers.fromTitle(edition.id, book.title, book.author)
+        val next = book.copy(coverRelPath = cover)
+        books.upsert(next)
+        return next
+    }
+
+    fun observeAnnotations() = annotations.observeAll()
+
+    suspend fun ensurePdfTextLayers(editionId: String) {
+        val edition = editions.get(editionId) ?: return
+        if (edition.sourceKind != "PDF") return
+        val existing = pages.forEdition(editionId)
+        if (existing.isEmpty() || existing.none { it.embeddedText == null }) return
+        val file = store.file(edition.relativePath)
+        if (!file.exists()) return
+        val layers = runCatching {
+            PdfTextLayer.extractPages(file.readBytes(), existing.size)
+        }.getOrDefault(emptyList())
+        existing.forEach { page ->
+            if (page.embeddedText != null) return@forEach
+            val layer = layers.getOrNull(page.index)
+            pages.update(
+                page.copy(
+                    embeddedText = layer?.text.orEmpty(),
+                    hasTextLayer = layer?.hasTextOperators == true,
+                ),
+            )
+        }
+    }
 
     suspend fun updatePageOcr(page: PageEntity) = pages.update(page)
 

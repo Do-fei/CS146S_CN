@@ -332,6 +332,8 @@ fun BookSpineCard(
     modifier: Modifier = Modifier,
     layer: KnowledgeLayer = KnowledgeLayer.SOURCE,
     progressLabel: String? = null,
+    progressPercent: Int = 0,
+    cover: androidx.compose.ui.graphics.ImageBitmap? = null,
     onContinue: (() -> Unit)? = null,
 ) {
     val scheme = MaterialTheme.colorScheme
@@ -345,12 +347,23 @@ fun BookSpineCard(
             .padding(end = 14.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Box(
-            Modifier
-                .width(3.dp)
-                .height(72.dp)
-                .background(spine),
-        )
+        if (cover != null) {
+            androidx.compose.foundation.Image(
+                cover,
+                contentDescription = "封面",
+                modifier = Modifier
+                    .width(56.dp)
+                    .height(84.dp)
+                    .background(scheme.surfaceVariant),
+            )
+        } else {
+            Box(
+                Modifier
+                    .width(3.dp)
+                    .height(84.dp)
+                    .background(spine),
+            )
+        }
         Column(
             Modifier
                 .weight(1f)
@@ -364,6 +377,7 @@ fun BookSpineCard(
             if (!progressLabel.isNullOrBlank()) {
                 Text(progressLabel, style = MaterialTheme.typography.labelSmall, color = scheme.onSurfaceVariant)
             }
+            QuietProgress(progressPercent / 100f)
             LayerChip(layer)
             if (onContinue != null) {
                 Text(

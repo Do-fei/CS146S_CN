@@ -40,7 +40,6 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.onepaper.app.AppConstants
@@ -123,6 +122,7 @@ fun HomePager(
     onCapture: () -> Unit,
     onOpenProject: (String) -> Unit,
     onOpenNote: (String) -> Unit,
+    onOpenLocator: (editionId: String, quote: String, href: String?, page: Int?) -> Unit,
     onSettings: () -> Unit,
     onBackup: () -> Unit,
     onTask: (String) -> Unit,
@@ -133,7 +133,7 @@ fun HomePager(
     val pane: @Composable () -> Unit = {
         when (tab) {
             0 -> ShelfPane(Modifier.fillMaxSize(), onOpenBook, onContinueRead, onImport, onCapture, onTask)
-            1 -> PapersPane(Modifier.fillMaxSize(), onOpenProject, onOpenNote)
+            1 -> PapersPane(Modifier.fillMaxSize(), onOpenProject, onOpenNote, onOpenLocator)
             2 -> CanteenPane(Modifier.fillMaxSize(), onBackup)
             else -> MePane(Modifier.fillMaxSize(), onSettings, onBackup, onOpenNote)
         }
@@ -223,13 +223,16 @@ private fun ShelfPane(
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 items(shelf, key = { it.book.id }) { item ->
+                    val cover = rememberCover(item.book.coverRelPath)
                     BookSpineCard(
                         title = item.book.title,
                         subtitle = listOfNotNull(
-                            item.book.author.takeIf { it.isNotBlank() },
+                            item.book.author.takeIf { it.isNotBlank() } ?: "作者未识",
                             if (item.book.coverage == "EXCERPT") "摘录" else "全书",
                         ).joinToString(" · "),
                         progressLabel = item.progress.label,
+                        progressPercent = item.progress.percent,
+                        cover = cover,
                         onClick = { onOpenBook(item.book.id) },
                         onContinue = item.editionId?.let { id -> { onContinueRead(id) } },
                     )
@@ -244,16 +247,52 @@ private fun PapersPane(
     modifier: Modifier,
     onOpenProject: (String) -> Unit,
     onOpenNote: (String) -> Unit,
+    onOpenLocator: (editionId: String, quote: String, href: String?, page: Int?) -> Unit,
     vm: PapersViewModel = hiltViewModel(),
 ) {
     val projects by vm.projectsFlow.collectAsStateWithLifecycle()
     val notes by vm.notesFlow.collectAsStateWithLifecycle()
+    val ember by vm.ember.collectAsStateWithLifecycle()
     Column(modifier.fillMaxSize()) {
         QuietTopBar(title = "一纸")
         LazyColumn(
             Modifier.padding(horizontal = 16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
+        item { SectionTitle("文火回看", glyph = ZenGlyph.Flame) }
+        item {
+            if (ember.isEmpty()) {
+                Text(
+                    "今天没有待回看的划线或我的稿。当天新写下的，明天再来。",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(bottom = 8.dp),
+                )
+            }
+        }
+        items(ember, key = { it.id }) { row ->
+            PaperCard(
+                Modifier.fillMaxWidth(),
+                onClick = {
+                    val jump = com.onepaper.domain.citation.LocatorJump.fromJson(row.locatorJson)
+                    val editionId = row.editionId
+                    if (row.kind == com.onepaper.domain.review.EmberKind.HIGHLIGHT && editionId != null) {
+                        onOpenLocator(editionId, jump?.quote ?: row.body, jump?.href, jump?.pageIndex)
+                    } else if (row.kind == com.onepaper.domain.review.EmberKind.DRAFT) {
+                        onOpenNote(row.id)
+                    }
+                },
+            ) {
+                Kicker(if (row.kind == com.onepaper.domain.review.EmberKind.HIGHLIGHT) "划线" else "我的稿")
+                Text(row.title, style = MaterialTheme.typography.titleMedium)
+                Text(row.body.take(120), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        }
+        if (ember.isNotEmpty()) {
+            item {
+                QuietButton("今日已回看", vm::dismissEmberToday, Modifier.fillMaxWidth(), glyph = ZenGlyph.Enso)
+            }
+        }
         item { SectionTitle("一纸项目", glyph = ZenGlyph.Sheet) }
         if (projects.isEmpty()) {
             item { EmptyState("还没有一纸", "打开一本书后会自动建立档案。", glyph = ZenGlyph.Sheet) }
@@ -378,6 +417,14 @@ fun BookScreen(
                 style = MaterialTheme.typography.bodyMedium,
             )
             Text(vm.deleteNotice.collectAsStateWithLifecycle().value, style = MaterialTheme.typography.bodySmall)
+            var authorDraft by remember(book?.id, book?.author) { mutableStateOf(book?.author.orEmpty()) }
+            QuietField(
+                value = authorDraft,
+                onValueChange = { authorDraft = it },
+                label = "作者（可改，不编造）",
+                modifier = Modifier.fillMaxWidth(),
+            )
+            QuietButton("保存作者", { vm.saveAuthor(authorDraft) }, Modifier.fillMaxWidth(), glyph = ZenGlyph.Brush)
             QuietButton("继续读", { editionId?.let(onOpenReader) }, Modifier.fillMaxWidth(), enabled = editionId != null, glyph = ZenGlyph.Book, tone = QuietTone.Ink)
             QuietButton("AI 搭子", { onOpenCompanion(vm.bookId) }, Modifier.fillMaxWidth(), glyph = ZenGlyph.Chat)
             QuietButton("一纸项目", { project?.let(onOpenProject) }, Modifier.fillMaxWidth(), enabled = project != null, glyph = ZenGlyph.Sheet)
@@ -434,19 +481,49 @@ fun ReaderScreen(
             if (stale) Banner("定位已过期，只标记 stale，不伪装成功。")
             notice?.let { Banner(it) }
             if (kind == "PDF") {
-                Banner("PDF 为固定版式预览。文本选择/搜索走 OCR 层，不假装可重排。")
+                Banner("PDF 是固定版式。有文本层就选字；没有就把识别叠在页上。不假装可重排。")
                 Text("第 ${pageIndex + 1} / ${pages.size.coerceAtLeast(1)} 页", style = MaterialTheme.typography.labelMedium)
-                pdfPath?.let { PdfPreview(it, pageIndex) }
-                currentPage?.recognitionDraft?.takeIf { it.isNotBlank() }?.let { draft ->
-                    Text("识别稿（划选记笔记 / 问搭子）", style = MaterialTheme.typography.labelMedium)
+                val context = LocalContext.current
+                val pageBitmap = remember(pdfPath, pageIndex) {
+                    pdfPath?.let { path ->
+                        com.onepaper.app.data.importing.PdfPages.renderBitmap(File(context.filesDir, path), pageIndex)
+                    }
+                }
+                val boxes = remember(currentPage?.ocrBoxesJson) {
+                    com.onepaper.app.data.ocr.OcrBoxCodec.decode(currentPage?.ocrBoxesJson)
+                }
+                if (currentPage?.hasTextLayer == true && !currentPage.embeddedText.isNullOrBlank()) {
+                    Text("本页文本层（原书，不是重排）", style = MaterialTheme.typography.labelMedium)
+                    pageBitmap?.let { Image(it.asImageBitmap(), contentDescription = "PDF 页", modifier = Modifier.fillMaxWidth().height(280.dp)) }
                     SelectableReaderText(
-                        text = draft,
+                        text = currentPage.embeddedText.orEmpty(),
                         fontSp = font,
                         highlight = jumpQuote,
                         onNote = { vm.highlight(it) },
                         onAsk = ask,
                     )
-                } ?: Text("先识别本页，再在识别稿上划选。图像本身不能当可重排文本。", style = MaterialTheme.typography.bodySmall)
+                } else {
+                    Text("本页没有可用文本层。识别稿叠在页上，不当原文。", style = MaterialTheme.typography.labelMedium)
+                    if (pageBitmap != null && boxes.isNotEmpty()) {
+                        com.onepaper.app.ui.reader.OcrOverlayPage(
+                            bitmap = pageBitmap,
+                            boxes = boxes,
+                            onPick = { vm.select(it) },
+                        )
+                    } else {
+                        pdfPath?.let { PdfPreview(it, pageIndex) }
+                    }
+                    currentPage?.recognitionDraft?.takeIf { it.isNotBlank() }?.let { draft ->
+                        Text("识别稿（校对后可划选）", style = MaterialTheme.typography.labelMedium)
+                        SelectableReaderText(
+                            text = draft,
+                            fontSp = font,
+                            highlight = jumpQuote,
+                            onNote = { vm.highlight(it) },
+                            onAsk = ask,
+                        )
+                    } ?: Text("先识别本页，再点页上的框或划选识别稿。", style = MaterialTheme.typography.bodySmall)
+                }
             } else if (kind == "IMAGES") {
                 Banner("扫描页按图像阅读。印刷 OCR 写识别稿，不当原文。")
                 Text("第 ${pageIndex + 1} / ${pages.size.coerceAtLeast(1)} 页", style = MaterialTheme.typography.labelMedium)
@@ -512,6 +589,19 @@ private fun PdfPreview(relativePath: String, pageIndex: Int) {
         )
     } else {
         Text("未能渲染这一页。")
+    }
+}
+
+@Composable
+private fun rememberCover(relativePath: String?): androidx.compose.ui.graphics.ImageBitmap? {
+    val context = LocalContext.current
+    return remember(relativePath) {
+        val rel = relativePath ?: return@remember null
+        runCatching {
+            val file = File(context.filesDir, rel)
+            if (!file.exists()) return@runCatching null
+            android.graphics.BitmapFactory.decodeFile(file.absolutePath)?.asImageBitmap()
+        }.getOrNull()
     }
 }
 

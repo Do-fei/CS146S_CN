@@ -26,7 +26,14 @@ import com.onepaper.app.data.repo.ImportOutcome
 import com.onepaper.app.data.repo.LibraryRepository
 import com.onepaper.app.data.repo.NoteRepository
 import com.onepaper.app.data.repo.ProjectRepository
+import com.onepaper.app.data.local.AnnotationEntity
+import com.onepaper.app.data.ocr.OcrBoxCodec
 import com.onepaper.app.data.repo.ShelfItem
+import com.onepaper.domain.paper.PaperShareDraft
+import com.onepaper.domain.review.EmberItem
+import com.onepaper.domain.review.EmberKind
+import com.onepaper.domain.review.EmberReview
+import com.onepaper.domain.recook.SectionKind
 import com.onepaper.domain.citation.ContentLocator
 import com.onepaper.domain.citation.LocatorCodec
 import com.onepaper.domain.citation.LocatorJump
@@ -75,6 +82,7 @@ class ShelfViewModel @Inject constructor(
                 val chapter = library.chaptersOf(seeded.editionId).firstOrNull()?.plainText.orEmpty()
                 projects.ensureForBook(seeded.bookId, "一纸书煲 · 授权摘录样本", chapter)
             }
+            library.activeBooks().forEach { library.ensureCover(it) }
         }
     }
 
@@ -107,6 +115,13 @@ class BookViewModel @Inject constructor(
 
     fun delete() {
         viewModelScope.launch { library.softDeleteBook(bookId) }
+    }
+
+    fun saveAuthor(author: String) {
+        viewModelScope.launch {
+            library.updateAuthor(bookId, author)
+            book.value = library.book(bookId)
+        }
     }
 }
 
@@ -142,6 +157,9 @@ class ReaderViewModel @Inject constructor(
             kind.value = edition?.sourceKind ?: "PLAIN_TEXT"
             pdfPath.value = edition?.relativePath
             chapters.value = library.chaptersOf(editionId)
+            if (kind.value == "PDF") {
+                library.ensurePdfTextLayers(editionId)
+            }
             pages.value = library.pagesOf(editionId)
             restorePosition()
             applyJump()
@@ -242,7 +260,13 @@ class ReaderViewModel @Inject constructor(
                 return@launch
             }
             val result = ocr.recognize(bytes, OcrKind.PRINT)
-            library.updatePageOcr(page.copy(ocrText = result.fullText, recognitionDraft = result.fullText))
+            library.updatePageOcr(
+                page.copy(
+                    ocrText = result.fullText,
+                    recognitionDraft = result.fullText,
+                    ocrBoxesJson = OcrBoxCodec.encode(result.boxes),
+                ),
+            )
             pages.value = library.pagesOf(editionId)
             if (selected.value.isBlank() && result.fullText.isNotBlank()) {
                 selected.value = result.fullText.take(80)
@@ -322,21 +346,64 @@ class ReaderViewModel @Inject constructor(
 class PapersViewModel @Inject constructor(
     private val projects: ProjectRepository,
     notes: NoteRepository,
+    library: LibraryRepository,
+    private val prefs: UserPrefs,
 ) : ViewModel() {
     val projectsFlow = projects.observeProjects()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
     val notesFlow = notes.observeAll()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+    val ember = combine(
+        library.observeAnnotations(),
+        notes.observeAll(),
+        prefs.emberDismissedIds,
+    ) { highlights, drafts, dismissed ->
+        val now = System.currentTimeMillis()
+        val active = if (dismissed.first == EmberReview.dayKey(now)) dismissed.second else emptySet()
+        val items = highlights.map { mark ->
+            EmberItem(
+                id = mark.id,
+                kind = EmberKind.HIGHLIGHT,
+                title = mark.quote.take(24).ifBlank { "划线" },
+                body = mark.quote,
+                createdAt = mark.createdAt,
+                bookId = mark.bookId,
+                editionId = mark.editionId,
+                locatorJson = mark.locatorJson,
+            )
+        } + drafts.map { note ->
+            EmberItem(
+                id = note.id,
+                kind = EmberKind.DRAFT,
+                title = note.title.ifBlank { "我的稿" },
+                body = note.userDraft,
+                createdAt = note.updatedAt,
+                bookId = note.bookId,
+                editionId = null,
+                locatorJson = note.locatorJson,
+            )
+        }
+        EmberReview.dueToday(items, now, active)
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    fun dismissEmberToday() {
+        viewModelScope.launch {
+            val ids = ember.value.map { it.id }.toSet()
+            prefs.dismissEmber(EmberReview.dayKey(System.currentTimeMillis()), ids)
+        }
+    }
 }
 
 @HiltViewModel
 class ProjectViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val projects: ProjectRepository,
+    private val library: LibraryRepository,
 ) : ViewModel() {
     val projectId: String = checkNotNull(savedStateHandle["projectId"])
     val project = MutableStateFlow<ProjectEntity?>(null)
     val sections = MutableStateFlow<List<ProjectSectionEntity>>(emptyList())
+    val quotes = MutableStateFlow<List<AnnotationEntity>>(emptyList())
     val proposalId = MutableStateFlow<String?>(null)
 
     init {
@@ -348,7 +415,13 @@ class ProjectViewModel @Inject constructor(
             project.value = projects.project(projectId)
             sections.value = projects.sectionsOf(projectId)
             proposalId.value = projects.proposalsOf(projectId).firstOrNull()?.id
+            quotes.value = project.value?.bookId?.let { library.highlights(it) }.orEmpty()
         }
+    }
+
+    fun sourceLines(): List<String> {
+        val excerpt = sections.value.firstOrNull { it.kind == SectionKind.EXCERPT.name }?.body.orEmpty()
+        return (listOf(excerpt).filter { it.isNotBlank() } + quotes.value.map { it.quote }).distinct()
     }
 
     fun saveSection(sectionId: String, body: String) {
@@ -613,6 +686,9 @@ class BackupViewModel @Inject constructor(
 ) : ViewModel() {
     val message = MutableStateFlow<String?>(null)
     val filePath = MutableStateFlow<String?>(null)
+    val paperMarkdown = MutableStateFlow("")
+    val paperPlain = MutableStateFlow("")
+    val includePrivate = MutableStateFlow(false)
 
     fun exportLibrary() {
         viewModelScope.launch {
@@ -642,9 +718,30 @@ class BackupViewModel @Inject constructor(
 
     fun exportMarkdown(projectId: String) {
         viewModelScope.launch {
-            val file = backup.exportProjectMarkdown(projectId)
+            val file = backup.exportProjectMarkdown(projectId, includePrivate.value)
             filePath.value = file.absolutePath
             message.value = "已导出 Markdown：${file.name}"
+        }
+    }
+
+    fun loadPaper(projectId: String) {
+        viewModelScope.launch {
+            val draft = backup.paperDraft(projectId, includePrivate.value)
+            paperMarkdown.value = PaperShareDraft.markdown(draft)
+            paperPlain.value = PaperShareDraft.plain(draft)
+        }
+    }
+
+    fun setIncludePrivate(projectId: String, value: Boolean) {
+        includePrivate.value = value
+        loadPaper(projectId)
+    }
+
+    fun exportPlain(projectId: String) {
+        viewModelScope.launch {
+            val file = backup.exportProjectPlain(projectId, includePrivate.value)
+            filePath.value = file.absolutePath
+            message.value = "已导出纯文本：${file.name}"
         }
     }
 
@@ -694,7 +791,13 @@ class PagesViewModel @Inject constructor(
                 runCatching { file.readBytes() }.getOrNull()
             } ?: return@launch
             val result = ocr.recognize(bytes, OcrKind.PRINT)
-            library.updatePageOcr(page.copy(ocrText = result.fullText, recognitionDraft = result.fullText))
+            library.updatePageOcr(
+                page.copy(
+                    ocrText = result.fullText,
+                    recognitionDraft = result.fullText,
+                    ocrBoxesJson = OcrBoxCodec.encode(result.boxes),
+                ),
+            )
             refresh()
         }
     }

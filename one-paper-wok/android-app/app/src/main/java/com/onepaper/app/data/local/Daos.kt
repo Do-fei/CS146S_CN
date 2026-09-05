@@ -23,6 +23,9 @@ interface BookDao {
 
     @Query("SELECT COUNT(*) FROM books WHERE deletedAt IS NULL")
     suspend fun activeCount(): Int
+
+    @Query("SELECT * FROM books WHERE deletedAt IS NULL")
+    suspend fun active(): List<BookEntity>
 }
 
 @Dao
@@ -83,12 +86,18 @@ interface NoteDao {
 
     @Query("SELECT COUNT(*) FROM notes")
     suspend fun count(): Int
+
+    @Query("SELECT * FROM notes")
+    suspend fun all(): List<NoteEntity>
 }
 
 @Dao
 interface AnnotationDao {
     @Query("SELECT * FROM annotations WHERE bookId = :bookId")
     suspend fun forBook(bookId: String): List<AnnotationEntity>
+
+    @Query("SELECT * FROM annotations ORDER BY createdAt DESC")
+    fun observeAll(): Flow<List<AnnotationEntity>>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsert(item: AnnotationEntity)
