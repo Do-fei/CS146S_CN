@@ -20,15 +20,21 @@ import com.onepaper.app.data.local.ProjectSectionEntity
 import com.onepaper.app.data.local.ProposalItemEntity
 import com.onepaper.app.data.prefs.UserPrefs
 import com.onepaper.app.data.secure.SecretStore
+import com.onepaper.app.data.backup.WebDavClient
 import com.onepaper.app.data.repo.BackupRepository
+import com.onepaper.app.data.repo.ClippingRepository
 import com.onepaper.app.data.repo.CompanionRepository
 import com.onepaper.app.data.repo.ImportOutcome
 import com.onepaper.app.data.repo.LibraryRepository
 import com.onepaper.app.data.repo.NoteRepository
 import com.onepaper.app.data.repo.ProjectRepository
+import com.onepaper.app.data.repo.SearchRepository
 import com.onepaper.app.data.local.AnnotationEntity
 import com.onepaper.app.data.ocr.OcrBoxCodec
 import com.onepaper.app.data.repo.ShelfItem
+import com.onepaper.app.data.tts.TtsSpeaker
+import com.onepaper.domain.search.LibraryHit
+import com.onepaper.domain.tts.TtsPolicy
 import com.onepaper.domain.paper.PaperShareDraft
 import com.onepaper.domain.review.EmberItem
 import com.onepaper.domain.review.EmberKind
@@ -55,13 +61,16 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import javax.inject.Inject
 
 @HiltViewModel
 class ShelfViewModel @Inject constructor(
     private val library: LibraryRepository,
     private val projects: ProjectRepository,
+    private val search: SearchRepository,
     prefs: UserPrefs,
 ) : ViewModel() {
     val books: StateFlow<List<BookEntity>> = library.observeBooks()
@@ -71,7 +80,7 @@ class ShelfViewModel @Inject constructor(
     val jobs: StateFlow<List<JobEntity>> = library.observeJobs()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
     val query = MutableStateFlow("")
-    val hits = MutableStateFlow<List<ChapterEntity>>(emptyList())
+    val hits = MutableStateFlow<List<LibraryHit>>(emptyList())
     val onboardingDone = prefs.onboardingDone
         .stateIn(viewModelScope, SharingStarted.Eagerly, null as Boolean?)
 
@@ -88,7 +97,7 @@ class ShelfViewModel @Inject constructor(
 
     fun search(q: String) {
         query.value = q
-        viewModelScope.launch { hits.value = library.searchChapters(q) }
+        viewModelScope.launch { hits.value = search.search(q) }
     }
 }
 
@@ -132,6 +141,7 @@ class ReaderViewModel @Inject constructor(
     private val notes: NoteRepository,
     private val store: PrivateStore,
     private val ocr: OcrEngine,
+    private val tts: TtsSpeaker,
 ) : ViewModel() {
     val editionId: String = checkNotNull(savedStateHandle["editionId"])
     private val seedQuote: String = savedStateHandle.get<String>("quote").orEmpty()
@@ -149,6 +159,8 @@ class ReaderViewModel @Inject constructor(
     val pageIndex = MutableStateFlow(0)
     val chapterIndex = MutableStateFlow(0)
     val notice = MutableStateFlow<String?>(null)
+    val speaking = tts.speaking
+    val ttsNotice = tts.notice
 
     init {
         viewModelScope.launch {
@@ -193,6 +205,33 @@ class ReaderViewModel @Inject constructor(
             chapterIndex.value = (chapterIndex.value - 1).coerceAtLeast(0)
         }
         persistPosition()
+    }
+
+    fun listenCurrent() {
+        val page = pages.value.getOrNull(pageIndex.value)
+        val chapter = chapters.value.getOrNull(chapterIndex.value)
+        val passage = TtsPolicy.passage(
+            kind = kind.value,
+            chapterText = chapter?.plainText,
+            embeddedText = page?.embeddedText,
+            recognitionDraft = page?.recognitionDraft,
+        )
+        if (passage == null) {
+            notice.value = "这一页没有可朗读的文字。扫描页请先识别。"
+            return
+        }
+        tts.speak(passage)
+        notice.value = "开始朗读：${passage.label}"
+    }
+
+    fun stopListening() {
+        tts.stop()
+        notice.value = "已停止朗读。"
+    }
+
+    override fun onCleared() {
+        tts.stop()
+        super.onCleared()
     }
 
     fun highlight(fromQuote: String? = null) {
@@ -624,6 +663,7 @@ class ImportViewModel @Inject constructor(
     private val library: LibraryRepository,
     private val projects: ProjectRepository,
     private val prefs: UserPrefs,
+    private val clippings: ClippingRepository,
 ) : ViewModel() {
     val last = MutableStateFlow<ImportOutcome?>(null)
     val excerpt = MutableStateFlow(false)
@@ -650,6 +690,12 @@ class ImportViewModel @Inject constructor(
     }
 
     fun finishOnboarding() = viewModelScope.launch { prefs.setOnboardingDone() }
+
+    fun importClippings(resolver: ContentResolver, uri: Uri) {
+        viewModelScope.launch {
+            last.value = clippings.importUri(resolver, uri)
+        }
+    }
 
     private suspend fun attachProject(outcome: ImportOutcome): ImportOutcome {
         if (outcome.rejectedReason != null || outcome.bookId.isBlank()) return outcome
@@ -683,12 +729,72 @@ class CaptureViewModel @Inject constructor(
 @HiltViewModel
 class BackupViewModel @Inject constructor(
     private val backup: BackupRepository,
+    private val webdav: WebDavClient,
+    private val secrets: SecretStore,
 ) : ViewModel() {
     val message = MutableStateFlow<String?>(null)
     val filePath = MutableStateFlow<String?>(null)
     val paperMarkdown = MutableStateFlow("")
     val paperPlain = MutableStateFlow("")
     val includePrivate = MutableStateFlow(false)
+    val davUrl = MutableStateFlow(secrets.webDavUrl().orEmpty())
+    val davUser = MutableStateFlow(secrets.webDavUser().orEmpty())
+    val davPassword = MutableStateFlow("")
+    val davPath = MutableStateFlow(secrets.webDavPath())
+    val davSaved = MutableStateFlow(secrets.hasWebDav())
+
+    fun saveWebDav() {
+        val password = davPassword.value.ifBlank { secrets.webDavPassword() }
+        runCatching {
+            com.onepaper.domain.backup.WebDavPath.requireHttps(davUrl.value)
+        }.onFailure {
+            message.value = it.message
+            return
+        }
+        secrets.setWebDav(davUrl.value, davUser.value, password, davPath.value)
+        davPassword.value = ""
+        davSaved.value = secrets.hasWebDav()
+        message.value = if (secrets.hasWebDav()) {
+            "已保存 WebDAV，凭据在本机密钥库，不进备份。"
+        } else {
+            "地址或密码还空着。"
+        }
+    }
+
+    fun clearWebDav() {
+        secrets.clearWebDav()
+        davUrl.value = ""
+        davUser.value = ""
+        davPassword.value = ""
+        davPath.value = com.onepaper.domain.backup.WebDavPath.DEFAULT_REMOTE
+        davSaved.value = false
+        message.value = "已清除 WebDAV。"
+    }
+
+    fun uploadWebDav() {
+        viewModelScope.launch {
+            runCatching {
+                withContext(Dispatchers.IO) {
+                    val file = backup.exportJson()
+                    webdav.upload(file.readBytes())
+                }
+                message.value = "已上传到 WebDAV（不含 DeepSeek Key / WebDAV 密码）。"
+            }.onFailure { message.value = it.message }
+        }
+    }
+
+    fun restoreWebDav() {
+        viewModelScope.launch {
+            runCatching {
+                val raw = withContext(Dispatchers.IO) {
+                    webdav.download().toString(Charsets.UTF_8)
+                }
+                val manifest = backup.preview(raw)
+                backup.restore(raw)
+                message.value = "已从 WebDAV 恢复 ${manifest.bookCount} 本书、${manifest.noteCount} 则笔记。"
+            }.onFailure { message.value = it.message }
+        }
+    }
 
     fun exportLibrary() {
         viewModelScope.launch {

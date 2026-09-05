@@ -42,6 +42,8 @@ enum class ZenGlyph {
     Import,
     ChevronLeft,
     ChevronRight,
+    Speak,
+    Cloud,
 }
 
 @Composable
@@ -277,6 +279,35 @@ internal fun DrawScope.drawZenGlyph(glyph: ZenGlyph, color: Color, stroke: Strok
         ZenGlyph.ChevronRight -> {
             line(9.8f, 6.2f, 15.4f, 12f)
             line(15.4f, 12f, 9.8f, 17.8f)
+        }
+        ZenGlyph.Speak -> {
+            path {
+                moveTo(x(4.2f), y(9.2f))
+                lineTo(x(8.6f), y(9.2f))
+                lineTo(x(13.2f), y(5.6f))
+                lineTo(x(13.2f), y(18.4f))
+                lineTo(x(8.6f), y(14.8f))
+                lineTo(x(4.2f), y(14.8f))
+                close()
+            }
+            path {
+                moveTo(x(16.0f), y(9.0f)); quadraticTo(x(18.4f), y(12.0f), x(16.0f), y(15.0f))
+            }
+            path {
+                moveTo(x(17.8f), y(7.0f)); quadraticTo(x(21.4f), y(12.0f), x(17.8f), y(17.0f))
+            }
+        }
+        ZenGlyph.Cloud -> {
+            path {
+                moveTo(x(6.4f), y(14.8f))
+                quadraticTo(x(3.8f), y(14.6f), x(4.0f), y(11.6f))
+                quadraticTo(x(4.2f), y(8.8f), x(7.2f), y(8.6f))
+                quadraticTo(x(8.8f), y(6.0f), x(12.2f), y(6.4f))
+                quadraticTo(x(15.6f), y(5.4f), x(17.4f), y(8.4f))
+                quadraticTo(x(20.6f), y(8.6f), x(20.2f), y(12.0f))
+                quadraticTo(x(20.6f), y(15.0f), x(17.6f), y(15.0f))
+                lineTo(x(6.4f), y(14.8f))
+            }
         }
     }
 }

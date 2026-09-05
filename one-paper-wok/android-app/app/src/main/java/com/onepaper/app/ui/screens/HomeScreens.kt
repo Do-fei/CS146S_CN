@@ -36,7 +36,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.asImageBitmap
-import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
@@ -74,7 +73,11 @@ import com.onepaper.app.ui.vm.PapersViewModel
 import com.onepaper.app.ui.vm.ReaderViewModel
 import com.onepaper.app.ui.vm.SettingsViewModel
 import com.onepaper.app.ui.vm.ShelfViewModel
+import com.onepaper.app.ui.layout.LocalWindowFit
+import com.onepaper.domain.citation.LocatorJump
 import com.onepaper.domain.model.KnowledgeLayer
+import com.onepaper.domain.search.LibraryHitKind
+import com.onepaper.domain.search.LibrarySearch
 import java.io.File
 
 @Composable
@@ -129,10 +132,20 @@ fun HomePager(
     modifier: Modifier = Modifier,
 ) {
     var tab by remember { mutableIntStateOf(0) }
-    val wide = LocalConfiguration.current.screenWidthDp >= 600
+    val wide = LocalWindowFit.current.wide
     val pane: @Composable () -> Unit = {
         when (tab) {
-            0 -> ShelfPane(Modifier.fillMaxSize(), onOpenBook, onContinueRead, onImport, onCapture, onTask)
+            0 -> ShelfPane(
+                Modifier.fillMaxSize(),
+                onOpenBook,
+                onContinueRead,
+                onImport,
+                onCapture,
+                onTask,
+                onOpenProject,
+                onOpenNote,
+                onOpenLocator,
+            )
             1 -> PapersPane(Modifier.fillMaxSize(), onOpenProject, onOpenNote, onOpenLocator)
             2 -> CanteenPane(Modifier.fillMaxSize(), onBackup)
             else -> MePane(Modifier.fillMaxSize(), onSettings, onBackup, onOpenNote)
@@ -161,6 +174,9 @@ private fun ShelfPane(
     onImport: () -> Unit,
     onCapture: () -> Unit,
     onTask: (String) -> Unit,
+    onOpenProject: (String) -> Unit,
+    onOpenNote: (String) -> Unit,
+    onOpenLocator: (editionId: String, quote: String, href: String?, page: Int?) -> Unit,
     vm: ShelfViewModel = hiltViewModel(),
 ) {
     val shelf by vm.shelf.collectAsStateWithLifecycle()
@@ -175,13 +191,21 @@ private fun ShelfPane(
                 QuietIconButton(ZenGlyph.Plus, "导入", onImport)
             },
         )
+        if (LocalWindowFit.current.coverLike) {
+            Text(
+                "外屏紧凑排版（按最小宽度判断，未在折叠真机关闭门禁）",
+                modifier = Modifier.padding(horizontal = LocalWindowFit.current.pagePad),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
         QuietField(
             value = query,
             onValueChange = vm::search,
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 16.dp),
-            label = "搜索原文",
+            label = "库内检索（本机，不是向量）",
         )
         if (jobs.any { it.status != "COMPLETED" }) {
             jobs.take(2).forEach { job ->
@@ -206,13 +230,39 @@ private fun ShelfPane(
             }
         }
         if (hits.isNotEmpty()) {
-            hits.take(5).forEach { hit ->
-                Text(
-                    "命中：${hit.title} · ${hit.plainText.take(40)}",
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
+            val pad = LocalWindowFit.current.pagePad
+            hits.take(8).forEach { hit ->
+                PaperCard(
+                    Modifier
+                        .padding(horizontal = pad, vertical = 4.dp)
+                        .fillMaxWidth(),
+                    onClick = {
+                        when (hit.kind) {
+                            LibraryHitKind.BOOK -> hit.bookId?.let(onOpenBook)
+                            LibraryHitKind.PAPER -> hit.projectId?.let(onOpenProject)
+                            LibraryHitKind.NOTE -> hit.noteId?.let(onOpenNote)
+                            LibraryHitKind.HIGHLIGHT -> {
+                                val jump = LocatorJump.fromJson(hit.locatorJson)
+                                val editionId = hit.editionId
+                                if (editionId != null) {
+                                    onOpenLocator(editionId, jump?.quote ?: hit.snippet, jump?.href, jump?.pageIndex)
+                                }
+                            }
+                            LibraryHitKind.CHAPTER -> {
+                                val editionId = hit.editionId
+                                if (editionId != null) {
+                                    onOpenLocator(editionId, query.take(80), hit.href, hit.pageIndex)
+                                } else {
+                                    hit.bookId?.let(onOpenBook)
+                                }
+                            }
+                        }
+                    },
+                ) {
+                    Kicker(LibrarySearch.kindLabel(hit.kind))
+                    Text(hit.title, style = MaterialTheme.typography.titleSmall)
+                    Text(hit.snippet, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
             }
         }
         if (shelf.isEmpty()) {
@@ -367,7 +417,7 @@ private fun CanteenPane(modifier: Modifier, onBackup: () -> Unit) {
         ) {
         ZenMark(ZenGlyph.Bowl, Modifier.height(120.dp).fillMaxWidth())
         Kicker("预告")
-        Banner("下一版才会开放发布、列表和互动。本页没有假动态。")
+        Banner("受邀食堂的真发布还没开工：需要你拍板账号和存放处。本页只有预告，没有假动态。")
         Text(
             "下一版计划：受邀群里分享一纸、收藏与评论、撤回，以及最小管理。这一版先把成果带走。",
             style = MaterialTheme.typography.bodyMedium,
@@ -554,6 +604,14 @@ fun ReaderScreen(
                 QuietButton("上一页", vm::prev, Modifier.weight(1f), glyph = ZenGlyph.ChevronLeft)
                 QuietButton("下一页", vm::next, Modifier.weight(1f), glyph = ZenGlyph.ChevronRight)
             }
+            val speaking by vm.speaking.collectAsStateWithLifecycle()
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                if (speaking) {
+                    QuietButton("停止朗读", vm::stopListening, Modifier.weight(1f), glyph = ZenGlyph.Speak, tone = QuietTone.Danger)
+                } else {
+                    QuietButton("听本页", vm::listenCurrent, Modifier.weight(1f), glyph = ZenGlyph.Speak)
+                }
+            }
             if (kind == "PDF" || kind == "IMAGES") {
                 QuietButton("识别本页（印刷 OCR）", vm::ocrCurrentPage, Modifier.fillMaxWidth(), glyph = ZenGlyph.Scan)
             }
@@ -630,6 +688,7 @@ fun ImportScreen(
 ) {
     val last by vm.last.collectAsStateWithLifecycle()
     val excerpt by vm.excerpt.collectAsStateWithLifecycle()
+    val context = LocalContext.current
     val picker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri != null) vm.import(uri, uri.lastPathSegment ?: "file")
     }
@@ -656,14 +715,28 @@ fun ImportScreen(
                     ),
                 )
             }
+            val clipPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+                if (uri != null) vm.importClippings(context.contentResolver, uri)
+            }
             QuietButton("选择文件", { picker.launch(arrayOf("*/*")) }, Modifier.fillMaxWidth(), glyph = ZenGlyph.Sheet, tone = QuietTone.Ink)
+            QuietButton(
+                "汇入书摘（Kindle / 微信读书导出文件）",
+                { clipPicker.launch(arrayOf("text/plain", "text/*", "*/*")) },
+                Modifier.fillMaxWidth(),
+                glyph = ZenGlyph.Note,
+            )
+            Text(
+                "只读你自己导出的文件。不登录微信读书或 Kindle，也不连它们的服务器。",
+                style = MaterialTheme.typography.bodySmall,
+                color = scheme.onSurfaceVariant,
+            )
             QuietButton("导入随包说明书（EPUB）", vm::importBundledEpub, Modifier.fillMaxWidth(), glyph = ZenGlyph.Book)
             QuietButton("导入随包样页（PDF）", vm::importBundledPdf, Modifier.fillMaxWidth(), glyph = ZenGlyph.Scan)
             last?.let { outcome ->
                 if (outcome.rejectedReason != null) {
                     Banner("未导入：${outcome.rejectedReason}")
                 } else {
-                    Banner("已复制并建档。书与文件一对一，不按书名合并。")
+                    Banner(outcome.detail ?: "已复制并建档。书与文件一对一，不按书名合并。")
                     QuietButton("打开这本书", { onOpenBook(outcome.bookId) }, Modifier.fillMaxWidth(), enabled = outcome.bookId.isNotBlank(), glyph = ZenGlyph.Book, tone = QuietTone.Ink)
                     QuietButton("返回书架", onDone, Modifier.fillMaxWidth(), tone = QuietTone.Ghost)
                 }
@@ -751,6 +824,7 @@ fun SettingsScreen(onBack: () -> Unit, vm: SettingsViewModel = hiltViewModel()) 
                 Modifier.fillMaxWidth(),
                 glyph = ZenGlyph.Brush,
             )
+            Text("WebDAV 备份在「备份与恢复」。凭据与 DeepSeek Key 一样只放本机密钥库。", style = MaterialTheme.typography.bodySmall, color = scheme.onSurfaceVariant)
             Kicker("真机门禁")
             Banner("下列条目尚未在目标真机关闭。模拟器或本机构建不能冒充已过。")
             Text("Pixel 7：未在本机实测。", style = MaterialTheme.typography.bodySmall, color = scheme.onSurfaceVariant)
@@ -786,6 +860,11 @@ private fun SettingsSwitch(label: String, checked: Boolean, onChange: (Boolean) 
 fun BackupScreen(onBack: () -> Unit, vm: BackupViewModel = hiltViewModel()) {
     val message by vm.message.collectAsStateWithLifecycle()
     val filePath by vm.filePath.collectAsStateWithLifecycle()
+    val davUrl by vm.davUrl.collectAsStateWithLifecycle()
+    val davUser by vm.davUser.collectAsStateWithLifecycle()
+    val davPassword by vm.davPassword.collectAsStateWithLifecycle()
+    val davPath by vm.davPath.collectAsStateWithLifecycle()
+    val davSaved by vm.davSaved.collectAsStateWithLifecycle()
     var restoreText by remember { mutableStateOf("") }
     val context = LocalContext.current
     val createDoc = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { uri ->
@@ -832,6 +911,28 @@ fun BackupScreen(onBack: () -> Unit, vm: BackupViewModel = hiltViewModel()) {
                 minLines = 4,
             )
             QuietButton("从粘贴恢复", { vm.restore(restoreText) }, Modifier.fillMaxWidth(), tone = QuietTone.Ghost)
+            SectionTitle("WebDAV（无自建账号）", glyph = ZenGlyph.Cloud)
+            Text(
+                "填你自己的盘，例如坚果云。只用 HTTPS。密码请用应用专用密码。凭据进本机密钥库，不进备份包。",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            QuietField(value = davUrl, onValueChange = { vm.davUrl.value = it }, label = "地址（如 https://dav.jianguoyun.com/dav）", modifier = Modifier.fillMaxWidth())
+            QuietField(value = davUser, onValueChange = { vm.davUser.value = it }, label = "用户名", modifier = Modifier.fillMaxWidth())
+            QuietField(
+                value = davPassword,
+                onValueChange = { vm.davPassword.value = it },
+                label = if (davSaved) "应用专用密码（留空则沿用已保存）" else "应用专用密码",
+                modifier = Modifier.fillMaxWidth(),
+                visualTransformation = PasswordVisualTransformation(),
+            )
+            QuietField(value = davPath, onValueChange = { vm.davPath.value = it }, label = "远端路径", modifier = Modifier.fillMaxWidth())
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                QuietButton("保存", vm::saveWebDav, Modifier.weight(1f), tone = QuietTone.Ink)
+                QuietButton("清除", vm::clearWebDav, Modifier.weight(1f))
+            }
+            QuietButton("上传到 WebDAV", vm::uploadWebDav, Modifier.fillMaxWidth(), glyph = ZenGlyph.Cloud, enabled = davSaved)
+            QuietButton("从 WebDAV 恢复", vm::restoreWebDav, Modifier.fillMaxWidth(), glyph = ZenGlyph.Import, enabled = davSaved)
             message?.let { Banner(it) }
         }
     }

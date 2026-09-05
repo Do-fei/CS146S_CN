@@ -19,8 +19,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.unit.dp
+import com.onepaper.app.ui.layout.LocalWindowFit
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.onepaper.app.data.local.ProjectSectionEntity
@@ -49,7 +49,7 @@ fun ProjectScreen(
     val sections by vm.sections.collectAsStateWithLifecycle()
     val proposalId by vm.proposalId.collectAsStateWithLifecycle()
     val quotes by vm.quotes.collectAsStateWithLifecycle()
-    val wide = LocalConfiguration.current.screenWidthDp >= 600
+    val wide = LocalWindowFit.current.wide
     var focus by remember { mutableStateOf("map") }
     LaunchedEffect(Unit) { vm.refresh() }
     val excerpt = sections.firstOrNull { it.kind == SectionKind.EXCERPT.name }

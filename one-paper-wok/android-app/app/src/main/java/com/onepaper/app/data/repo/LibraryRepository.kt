@@ -47,6 +47,7 @@ data class ImportOutcome(
     val bookId: String,
     val editionId: String,
     val rejectedReason: String? = null,
+    val detail: String? = null,
 )
 
 data class ShelfItem(

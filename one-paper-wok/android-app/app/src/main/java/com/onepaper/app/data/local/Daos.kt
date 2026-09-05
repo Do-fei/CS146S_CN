@@ -26,6 +26,9 @@ interface BookDao {
 
     @Query("SELECT * FROM books WHERE deletedAt IS NULL")
     suspend fun active(): List<BookEntity>
+
+    @Query("SELECT * FROM books WHERE deletedAt IS NULL AND title = :title LIMIT 1")
+    suspend fun findActiveByTitle(title: String): BookEntity?
 }
 
 @Dao
@@ -38,6 +41,9 @@ interface EditionDao {
 
     @Query("SELECT * FROM editions")
     fun observeAll(): Flow<List<EditionEntity>>
+
+    @Query("SELECT * FROM editions")
+    suspend fun all(): List<EditionEntity>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsert(edition: EditionEntity)
@@ -99,6 +105,9 @@ interface AnnotationDao {
     @Query("SELECT * FROM annotations ORDER BY createdAt DESC")
     fun observeAll(): Flow<List<AnnotationEntity>>
 
+    @Query("SELECT * FROM annotations")
+    suspend fun all(): List<AnnotationEntity>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsert(item: AnnotationEntity)
 }
@@ -131,6 +140,9 @@ interface ProjectDao {
 
     @Query("SELECT COUNT(*) FROM projects")
     suspend fun count(): Int
+
+    @Query("SELECT * FROM projects")
+    suspend fun all(): List<ProjectEntity>
 }
 
 @Dao
@@ -146,6 +158,9 @@ interface SectionDao {
 
     @Query("DELETE FROM project_sections WHERE projectId = :projectId")
     suspend fun deleteForProject(projectId: String)
+
+    @Query("SELECT * FROM project_sections")
+    suspend fun all(): List<ProjectSectionEntity>
 }
 
 @Dao

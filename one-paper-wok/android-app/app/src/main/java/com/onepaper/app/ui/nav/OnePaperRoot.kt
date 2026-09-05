@@ -32,7 +32,10 @@ import com.onepaper.app.ui.screens.ReaderScreen
 import com.onepaper.app.ui.screens.RecookScreen
 import com.onepaper.app.ui.screens.SettingsScreen
 import com.onepaper.app.ui.screens.TaskScreen
+import com.onepaper.app.ui.layout.LocalWindowFit
+import com.onepaper.app.ui.layout.rememberWindowFit
 import com.onepaper.app.ui.vm.ShelfViewModel
+import androidx.compose.runtime.CompositionLocalProvider
 
 @Composable
 fun OnePaperRoot(modifier: Modifier = Modifier) {
@@ -46,7 +49,9 @@ fun OnePaperRoot(modifier: Modifier = Modifier) {
         return
     }
     val start = if (onboarded == true) Routes.Home else Routes.Onboarding
+    val fit = rememberWindowFit()
 
+    CompositionLocalProvider(LocalWindowFit provides fit) {
     NavHost(navController = nav, startDestination = start, modifier = modifier) {
         composable(Routes.Onboarding) {
             OnboardingScreen(
@@ -148,6 +153,7 @@ fun OnePaperRoot(modifier: Modifier = Modifier) {
         composable(Routes.Backup) { BackupScreen(onBack = { nav.popBackStack() }) }
         composable(Routes.Settings) { SettingsScreen(onBack = { nav.popBackStack() }) }
         composable(Routes.Handwriting) { HandwritingScreen(onBack = { nav.popBackStack() }) }
+    }
     }
 }
 

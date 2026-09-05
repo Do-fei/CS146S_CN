@@ -47,6 +47,7 @@ import androidx.compose.ui.unit.dp
 import com.onepaper.app.ui.graphics.ZenGlyph
 import com.onepaper.app.ui.graphics.ZenIcon
 import com.onepaper.app.ui.graphics.ZenMark
+import com.onepaper.app.ui.layout.LocalWindowFit
 import com.onepaper.app.ui.theme.Seal
 import com.onepaper.domain.model.KnowledgeLayer
 
@@ -76,9 +77,10 @@ fun QuietButton(
         QuietTone.Line -> BorderStroke(1.dp, scheme.outline.copy(alpha = if (enabled) 0.95f else 0.35f))
         QuietTone.Ghost, QuietTone.Danger -> null
     }
+    val minH = if (LocalWindowFit.current.coverLike) 44.dp else 48.dp
     Row(
         modifier
-            .defaultMinSize(minHeight = 48.dp)
+            .defaultMinSize(minHeight = minH)
             .clip(shape)
             .then(if (border != null) Modifier.border(border, shape) else Modifier)
             .background(colors.first, shape)
@@ -188,11 +190,12 @@ fun QuietIconButton(
 
 @Composable
 fun QuietNavBar(selected: Int, onSelect: (Int) -> Unit) {
+    val cover = LocalWindowFit.current.coverLike
     val items = listOf(
-        Triple(ZenGlyph.Books, "书架", 0),
-        Triple(ZenGlyph.Sheet, "一纸", 1),
-        Triple(ZenGlyph.Bowl, "食堂", 2),
-        Triple(ZenGlyph.Seal, "我的", 3),
+        Triple(ZenGlyph.Books, if (cover) "架" else "书架", 0),
+        Triple(ZenGlyph.Sheet, if (cover) "纸" else "一纸", 1),
+        Triple(ZenGlyph.Bowl, if (cover) "堂" else "食堂", 2),
+        Triple(ZenGlyph.Seal, if (cover) "我" else "我的", 3),
     )
     val scheme = MaterialTheme.colorScheme
     Column(
@@ -204,7 +207,7 @@ fun QuietNavBar(selected: Int, onSelect: (Int) -> Unit) {
         Row(
             Modifier
                 .fillMaxWidth()
-                .height(64.dp),
+                .height(if (cover) 52.dp else 64.dp),
             horizontalArrangement = Arrangement.SpaceEvenly,
         ) {
             items.forEach { (glyph, label, index) ->
@@ -338,6 +341,7 @@ fun BookSpineCard(
 ) {
     val scheme = MaterialTheme.colorScheme
     val spine = spineInk(title)
+    val fit = LocalWindowFit.current
     Row(
         modifier
             .fillMaxWidth()
@@ -352,22 +356,22 @@ fun BookSpineCard(
                 cover,
                 contentDescription = "封面",
                 modifier = Modifier
-                    .width(56.dp)
-                    .height(84.dp)
+                    .width(fit.coverW)
+                    .height(fit.coverH)
                     .background(scheme.surfaceVariant),
             )
         } else {
             Box(
                 Modifier
                     .width(3.dp)
-                    .height(84.dp)
+                    .height(fit.coverH)
                     .background(spine),
             )
         }
         Column(
             Modifier
                 .weight(1f)
-                .padding(horizontal = 14.dp, vertical = 14.dp),
+                .padding(horizontal = if (fit.coverLike) 10.dp else 14.dp, vertical = if (fit.coverLike) 8.dp else 14.dp),
             verticalArrangement = Arrangement.spacedBy(6.dp),
         ) {
             Text(title, style = MaterialTheme.typography.titleMedium)
