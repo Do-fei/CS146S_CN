@@ -417,9 +417,9 @@ private fun CanteenPane(modifier: Modifier, onBackup: () -> Unit) {
         ) {
         ZenMark(ZenGlyph.Bowl, Modifier.height(120.dp).fillMaxWidth())
         Kicker("预告")
-        Banner("受邀食堂的真发布还没开工：需要你拍板账号和存放处。本页只有预告，没有假动态。")
+        Banner("这一版食堂只预告。成果用系统分享带走。没有公共动态，也没有假列表。")
         Text(
-            "下一版计划：受邀群里分享一纸、收藏与评论、撤回，以及最小管理。这一版先把成果带走。",
+            "真发布以后若要做，再单独立项。现在先把成果带走。",
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
