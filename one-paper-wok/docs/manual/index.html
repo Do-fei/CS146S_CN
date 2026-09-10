@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>一纸读书煲 · 使用说明书</title>
+  <style>
+    :root {
+      --orange: #E8734A;
+      --cream: #FFF8F0;
+      --ink: #2D2D2D;
+      --muted: #7A726A;
+      --card: #ffffff;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--cream);
+      color: var(--ink);
+      font-family: "Noto Serif SC", "Songti SC", "Source Han Serif SC", serif;
+      line-height: 1.75;
+    }
+    .sans { font-family: "Noto Sans SC", "PingFang SC", sans-serif; }
+    header.hero {
+      max-width: 880px;
+      margin: 0 auto;
+      padding: 36px 24px 8px;
+    }
+    header.hero img.cover {
+      width: 100%;
+      border-radius: 24px;
+      display: block;
+    }
+    .wrap { max-width: 760px; margin: 0 auto; padding: 8px 24px 80px; }
+    h1 { font-size: 36px; margin: 24px 0 8px; letter-spacing: .02em; }
+    .sub { color: var(--muted); font-size: 18px; margin-bottom: 28px; }
+    h2 {
+      font-size: 24px;
+      margin: 48px 0 12px;
+      padding-top: 8px;
+      border-top: 1px solid #eadfd3;
+    }
+    h3 { font-size: 18px; margin: 28px 0 8px; }
+    p { margin: 10px 0; }
+    ol, ul { padding-left: 1.3em; }
+    li { margin: 6px 0; }
+    .callout {
+      background: #fff;
+      border-left: 4px solid var(--orange);
+      border-radius: 0 14px 14px 0;
+      padding: 14px 18px;
+      margin: 18px 0;
+    }
+    .url {
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      background: #fff;
+      border: 1px dashed #e0d5c8;
+      border-radius: 10px;
+      padding: 10px 12px;
+      word-break: break-all;
+      font-size: 14px;
+    }
+    .shot {
+      margin: 18px 0 8px;
+      text-align: center;
+    }
+    .shot img {
+      width: min(320px, 100%);
+      border-radius: 28px;
+      box-shadow: 0 18px 40px rgba(80, 40, 20, .12);
+      background: #fff;
+    }
+    .shot figcaption {
+      color: var(--muted);
+      font-size: 13px;
+      margin-top: 8px;
+      font-family: "Noto Sans SC", sans-serif;
+    }
+    .pair {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+    @media (max-width: 640px) { .pair { grid-template-columns: 1fr; } }
+    .flow { width: 100%; border-radius: 18px; margin: 12px 0 8px; display: block; }
+    .toc a { color: var(--orange); text-decoration: none; }
+    .toc li { margin: 4px 0; }
+    footer { color: var(--muted); font-size: 13px; margin-top: 48px; }
+    .badge {
+      display: inline-block;
+      background: var(--orange);
+      color: #fff;
+      border-radius: 999px;
+      padding: 2px 10px;
+      font-size: 12px;
+      font-family: "Noto Sans SC", sans-serif;
+    }
+    .trailer-wrap {
+      margin: 8px 0 28px;
+      border-radius: 20px;
+      overflow: hidden;
+      background: #1a120e;
+      box-shadow: 0 22px 50px rgba(80, 40, 20, .18);
+    }
+    .trailer-wrap video {
+      display: block;
+      width: 100%;
+      max-height: 520px;
+      background: #1a120e;
+    }
+    .trailer-caption {
+      color: var(--muted);
+      font-size: 13px;
+      margin: 8px 0 0;
+    }
+  </style>
+</head>
+<body>
+<header class="hero">
+  <img class="cover" src="images/cover.png" alt="一纸读书煲封面：书页在铜锅中慢慢翻滚">
+</header>
+<article class="wrap">
+  <p class="sans"><span class="badge">当前 APK · 1.0.0</span></p>
+  <h1>一纸读书煲</h1>
+  <p class="sub">使用说明书 · 一个有趣的精神庇护所</p>
+  <p>把纸书扫进锅里，慢炖成可搜索的电子书和「一纸项目」，再把手写批注回锅加料。账号跟着你走，换手机登录即可同步。</p>
+
+  <h2>产品预告</h2>
+  <div class="trailer-wrap">
+    <video controls playsinline preload="metadata" poster="images/cover.png">
+      <source src="一纸读书煲-产品预告.mp4" type="video/mp4">
+    </video>
+  </div>
+  <p class="trailer-caption sans">约 47 秒 · 1080p · 宣传片 · 砂煲形象已统一</p>
+
+  <h2>目录</h2>
+  <ol class="toc sans">
+    <li><a href="#install">安装 APK</a></li>
+    <li><a href="#login">连接服务器并登录</a></li>
+    <li><a href="#wok">我的锅</a></li>
+    <li><a href="#scan">自炊：扫描纸书</a></li>
+    <li><a href="#cook">慢炖与出锅</a></li>
+    <li><a href="#read">阅读、搜索、翻译、导出</a></li>
+    <li><a href="#project">一纸项目</a></li>
+    <li><a href="#notebook">一纸笔记本 / 回锅加料</a></li>
+    <li><a href="#sync">多设备同步</a></li>
+    <li><a href="#faq">常见问题</a></li>
+  </ol>
+
+  <h2>这锅怎么煮</h2>
+  <img class="flow" src="images/flow.png" alt="备料、慢炖、出锅、回锅加料四步">
+  <p>四个动作对应 App 里的四件事：拍照备料 → 后台慢炖 → 阅读与一纸精华出锅 → 批注再回锅。</p>
+
+  <h2 id="install">1. 安装 APK</h2>
+  <ol>
+    <li>用手机打开当前版本的安装包（约 54MB）。</li>
+    <li>若系统提示「禁止未知来源」，到设置里允许该文件管理器 / 浏览器安装应用。</li>
+    <li>安装完成后打开 <strong>一纸读书煲</strong>。</li>
+  </ol>
+  <div class="callout">这是 Android 侧载包，不是应用商店版本。只需安装一次；服务器已经在云端，不必再开电脑。</div>
+
+  <h2 id="login">2. 连接服务器并登录</h2>
+  <p>第一次打开会进入登录页。先填服务器，再取验证码。</p>
+  <figure class="shot">
+    <img src="images/01_login.png" alt="登录页：填服务器地址">
+    <figcaption>登录页 · 先填服务器</figcaption>
+  </figure>
+  <p>当前云端地址（复制到「服务器地址」）：</p>
+  <p class="url">https://backend-production-9191.up.railway.app</p>
+  <ul>
+    <li>可以只贴主机名，App 会自动补上 <code>https://</code>。</li>
+    <li>不要填 <code>127.0.0.1</code>，那是手机自己，连不到云端。</li>
+    <li>点 <strong>测试连接</strong>，看到绿色「已连通」再继续。</li>
+  </ul>
+  <div class="pair">
+    <figure class="shot">
+      <img src="images/02_login_connected.png" alt="测试连接成功">
+      <figcaption>测试连接成功</figcaption>
+    </figure>
+    <figure class="shot">
+      <img src="images/03_login_code.png" alt="验证码显示在登录页">
+      <figcaption>验证码会直接出现在本页</figcaption>
+    </figure>
+  </div>
+  <ol>
+    <li>邮箱填任意有效格式即可，例如 <code>me@example.com</code>。</li>
+    <li>点 <strong>获取验证码</strong>。当前未开通真实邮件，<strong>6 位数字会出现在登录页蓝色提示里</strong>（「开发模式验证码」）。</li>
+    <li>把这 6 位填进验证码框，点 <strong>登录</strong>。</li>
+  </ol>
+  <div class="callout">以后若配置了 SMTP，验证码会发到邮箱，蓝色提示就不会再出现。</div>
+
+  <h2 id="wok">3. 我的锅</h2>
+  <p>登录后默认来到「我的锅」，这里是你的书架。</p>
+  <div class="pair">
+    <figure class="shot">
+      <img src="images/04_library_empty.png" alt="空的我的锅">
+      <figcaption>还没有书时</figcaption>
+    </figure>
+    <figure class="shot">
+      <img src="images/06_library_books.png" alt="已出锅的书">
+      <figcaption>出锅之后</figcaption>
+    </figure>
+  </div>
+  <ul>
+    <li>右下角橙色相机：开始自炊。</li>
+    <li>右上角地球：改服务器地址。</li>
+    <li>旋转箭头：从云端同步。</li>
+    <li>退出：登出当前账号。</li>
+    <li>筛选项：全部 / 电子书 / 一纸项目。</li>
+  </ul>
+  <figure class="shot">
+    <img src="images/15_server_dialog.png" alt="修改服务器地址对话框">
+    <figcaption>在「我的锅」里也能改服务器</figcaption>
+  </figure>
+
+  <h2 id="scan">4. 自炊：扫描纸书</h2>
+  <figure class="shot">
+    <img src="images/07_scan.png" alt="自炊台">
+    <figcaption>自炊台</figcaption>
+  </figure>
+  <ol>
+    <li>填书名，作者可选。</li>
+    <li>选 <strong>全书自炊</strong> 或 <strong>轻摘录</strong>（少页、片段也可以）。</li>
+    <li>用 <strong>拍摄</strong> 或 <strong>相册</strong> 加入书页，至少 1 页。</li>
+    <li>点 <strong>开始慢炖</strong>。</li>
+  </ol>
+  <p>拍照小建议：光线均匀、文字平铺、尽量一次一页。页序就是之后电子书的页序。</p>
+
+  <h2 id="cook">5. 慢炖与出锅</h2>
+  <div class="pair">
+    <figure class="shot">
+      <img src="images/09_cooking.png" alt="慢炖进度">
+      <figcaption>慢炖进度</figcaption>
+    </figure>
+    <figure class="shot">
+      <img src="images/05_library_cooking.png" alt="我的锅上的慢炖横幅">
+      <figcaption>回「我的锅」也能看到进度</figcaption>
+    </figure>
+  </div>
+  <p>慢炖时服务端会做：压缩图片 → OCR → 章节结构 → 一纸精华 → 可搜索 PDF。可以点「回我的锅，后台继续」，不必盯着这一屏。</p>
+  <p>完成后点 <strong>查看出锅结果</strong>，进入这本书的首页。</p>
+  <figure class="shot">
+    <img src="images/10_book_home.png" alt="书首页四个入口">
+    <figcaption>一本书的四个入口</figcaption>
+  </figure>
+
+  <h2 id="read">6. 阅读、搜索、翻译、导出</h2>
+  <div class="pair">
+    <figure class="shot">
+      <img src="images/11_reader.png" alt="阅读页">
+      <figcaption>阅读原文</figcaption>
+    </figure>
+    <figure class="shot">
+      <img src="images/12_reader_translate.png" alt="对照翻译">
+      <figcaption>打开开关即可对照翻译</figcaption>
+    </figure>
+  </div>
+  <ul>
+    <li>顶部搜索框：全文搜索，点结果可跳页。</li>
+    <li>开关 + EN / JA / ZH：按段翻译（有缓存，同一页再开会更快）。</li>
+    <li>PDF / EPUB 图标：导出后走系统分享。EPUB 会先在后台生成，稍等片刻。</li>
+    <li>底部左右箭头翻页。</li>
+  </ul>
+  <div class="callout">当前 OCR 与翻译默认是 <strong>Mock</strong>：流程完整，识别结果不是真实书页文字。接上百度 OCR、通义千问后，同一套按钮就会变成真内容。</div>
+
+  <h2 id="project">7. 一纸项目</h2>
+  <figure class="shot">
+    <img src="images/13_project.png" alt="一纸项目精华">
+    <figcaption>一纸精华、要点，以及你回锅后的批注</figcaption>
+  </figure>
+  <p>慢炖完成后会生成「一纸项目」：全书摘要、关键洞察、章节提纲。回锅加料后，个人批注会出现在紫色卡片里，版本号会 +1。</p>
+  <p>「分享到食堂」是下一阶段的社区，当前按钮不可用。</p>
+
+  <h2 id="notebook">8. 一纸笔记本 / 回锅加料</h2>
+  <div class="pair">
+    <figure class="shot">
+      <img src="images/14_notebook.png" alt="一纸笔记本">
+      <figcaption>打字或扫描都能留下批注</figcaption>
+    </figure>
+    <figure class="shot">
+      <img src="images/08_scan_annotation.png" alt="扫描手写批注">
+      <figcaption>扫描书页上的手写</figcaption>
+    </figure>
+  </div>
+  <ol>
+    <li>在笔记本里直接打字，点发送。</li>
+    <li>或点「扫描手写批注」，拍下你写在书上的字。页码从 0 起，可空。</li>
+    <li>点一条批注可以修正识别结果。</li>
+    <li>点右上角 <strong>回锅加料</strong>，这些批注会重新炖进一纸项目。</li>
+  </ol>
+
+  <h2 id="sync">9. 多设备同步</h2>
+  <p>数据存在云端，跟邮箱账号走。另一部安卓装上同一 APK，填同一个服务器，用同一个邮箱验证码登录，再点「我的锅」右上角同步，书、项目和批注会拉下来。</p>
+
+  <h2 id="faq">10. 常见问题</h2>
+  <h3>测试连接失败</h3>
+  <p>检查地址是否带 <code>https://</code>、有没有多打空格。云端请用上面的 Railway 地址；若改回电脑调试，手机必须和电脑同一 Wi-Fi，后端要监听 <code>0.0.0.0:8000</code>。</p>
+  <h3>收不到邮件</h3>
+  <p>当前版本验证码显示在登录页，不用查邮箱。</p>
+  <h3>识别结果像在讲故事、不像我的书</h3>
+  <p>这是 Mock 模式，用来走通流程。要真实 OCR / 摘要，需要配置百度与通义密钥。</p>
+  <h3>慢炖很久</h3>
+  <p>可以回「我的锅」等横幅走完。真 OCR 时页数越多越久。</p>
+  <h3>这本书不想要了</h3>
+  <p>打开书首页右上角删除。这是软删除，同步后其他设备也会看不到。</p>
+
+  <h2>这一版有什么、没有什么</h2>
+  <p><strong>有：</strong>邮箱验证码登录、扫描自炊、慢炖、PDF / EPUB、搜索与翻译、一纸项目、笔记本与回锅、多设备同步。</p>
+  <p><strong>没有：</strong>一纸食堂社区、AI 搭子自由对话、应用内付费、苹果手机安装包。</p>
+
+  <footer>
+    一纸读书煲 MVP · APK 1.0.0 · 说明书与当前安装包配套。<br>
+    后端控制台：<a href="https://railway.com/project/212209b7-b52a-46e2-b40b-b6380c1d2827">Railway 项目</a>
+  </footer>
+</article>
+</body>
+</html>

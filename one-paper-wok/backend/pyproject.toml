@@ -1,0 +1,50 @@
+[tool.poetry]
+name = "one-paper-wok-backend"
+version = "0.1.0"
+description = "One Paper Wok backend: scan -> OCR -> AI one-paper project -> searchable ebook"
+authors = ["One Paper Wok <dev@example.com>"]
+readme = "../README.md"
+packages = []
+package-mode = false
+
+[tool.poetry.dependencies]
+python = ">=3.10,<4.0"
+fastapi = ">=0.111.0"
+uvicorn = { version = ">=0.23.0", extras = ["standard"] }
+sqlalchemy = ">=2.0.0"
+pydantic = ">=2.0.0"
+pydantic-settings = ">=2.0.0"
+email-validator = ">=2.0.0"
+python-multipart = ">=0.0.9"
+python-dotenv = ">=1.0.0"
+python-jose = { version = ">=3.3.0", extras = ["cryptography"] }
+cryptography = ">=42.0.0"
+aiosmtplib = ">=3.0.0"
+httpx = ">=0.24.0"
+openai = ">=1.0.0"
+reportlab = ">=4.0.0"
+ebooklib = ">=0.18"
+pillow = ">=10.0.0"
+
+[tool.poetry.group.dev.dependencies]
+pytest = ">=7.0.0"
+black = ">=24.1.0"
+ruff = ">=0.4.0"
+
+[build-system]
+requires = ["poetry-core>=1.7.0"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.black]
+line-length = 100
+target-version = ["py310", "py311", "py312"]
+
+[tool.ruff]
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+ignore = ["E501", "B008"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
