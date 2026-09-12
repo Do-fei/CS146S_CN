@@ -30,15 +30,15 @@ PORTRAITS = {
 
 SCENE_TITLES = {
     "title": "十一点的城市",
-    "apartment": "老公寓",
+    "apartment": "南横街老楼",
     "elevator": "电梯",
     "street_rain": "雨街",
     "store": "便利店",
     "overpass": "天桥",
-    "mall": "旧商场",
+    "mall": "西单商场",
     "tape_shop": "倒带馆",
     "tape_back": "后仓",
-    "aquarium": "水族馆",
+    "aquarium": "海洋馆",
     "tank": "水箱",
     "pump": "泵房",
     "bus": "夜班车",
