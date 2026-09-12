@@ -21,7 +21,7 @@ STORY.update(RAIL)
 
 PORTRAITS = {
     "": "无",
-    "linxia": "林夏",
+    "linxia": "赵宜",
     "qing": "阿青",
     "zhou": "老周",
     "hai": "小海",
