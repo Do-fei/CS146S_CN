@@ -43,6 +43,25 @@ def _open_rgb(path: Path) -> Image.Image | None:
 
 
 def _fallback_scene(name: str) -> Image.Image:
+    aliases = {
+        "hutong": "street_rain",
+        "avenue": "street_rain",
+        "xidan_road": "street_rain",
+        "aqua_road": "street_rain",
+        "home_rain": "street_rain",
+        "nameless_lane": "street_rain",
+        "morning_st": "street_rain",
+        "dawn_apt": "apartment",
+        "mall_mid": "mall",
+        "aqua_tunnel": "tank",
+        "riverbank": "overpass",
+        "metro_gate": "subway",
+        "gap_tunnel": "subway",
+        "pale_dawn": "rooftop",
+        "duty_room": "aquarium",
+        "wave_plat": "platform",
+    }
+    key = aliases.get(name, name)
     fn = {
         "title": _title,
         "apartment": _apartment,
@@ -60,7 +79,7 @@ def _fallback_scene(name: str) -> Image.Image:
         "subway": _subway,
         "platform": _platform,
         "rooftop": _rooftop,
-    }.get(name, _street_rain)
+    }.get(key, _street_rain)
     return fn()
 
 
@@ -333,7 +352,14 @@ def _fallback_portrait(name: str) -> Image.Image:
 
 
 def paint_portrait(name: str, size: tuple[int, int] = SNES_PORTRAIT) -> Image.Image:
-    src = _open_rgb(PORTRAIT_DIR / f"{name}.jpg") or _open_rgb(PORTRAIT_DIR / f"{name}.png")
+    src = None
+    png = PORTRAIT_DIR / f"{name}.png"
+    if png.exists():
+        src = Image.open(png).convert("RGBA")
+    else:
+        rgb = _open_rgb(PORTRAIT_DIR / f"{name}.jpg")
+        if rgb is not None:
+            src = rgb.convert("RGBA")
     if src is None:
         fb = _fallback_portrait(name)
         if fb.size == size:
@@ -364,6 +390,22 @@ def all_scene_names() -> list[str]:
         "subway",
         "platform",
         "rooftop",
+        "hutong",
+        "avenue",
+        "xidan_road",
+        "aqua_road",
+        "dawn_apt",
+        "mall_mid",
+        "aqua_tunnel",
+        "riverbank",
+        "nameless_lane",
+        "metro_gate",
+        "gap_tunnel",
+        "pale_dawn",
+        "morning_st",
+        "home_rain",
+        "duty_room",
+        "wave_plat",
     ]
 
 

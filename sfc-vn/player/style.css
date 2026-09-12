@@ -58,16 +58,16 @@ html, body {
 
 #portrait {
   position: absolute;
-  right: 28px;
+  right: 36px;
   left: auto;
-  top: 18px;
-  width: 300px;
-  height: 400px;
-  object-fit: cover;
-  object-position: center top;
+  top: 8px;
+  width: 280px;
+  height: 430px;
+  object-fit: contain;
+  object-position: bottom center;
   image-rendering: auto;
-  filter: contrast(1.04) saturate(0.96);
-  box-shadow: 0 18px 40px #00000088;
+  background: transparent;
+  filter: drop-shadow(0 10px 18px #00000099);
   display: none;
   z-index: 1;
 }

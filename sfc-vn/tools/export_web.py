@@ -22,7 +22,10 @@ def export(out: Path) -> None:
     for name in all_scene_names():
         paint_scene_web(name).convert("RGB").save(assets / f"scene_{name}.jpg", quality=84, optimize=True)
     for name in all_portrait_names():
-        paint_portrait_web(name).convert("RGB").save(assets / f"portrait_{name}.jpg", quality=88, optimize=True)
+        paint_portrait_web(name).save(assets / f"portrait_{name}.png")
+        old_jpg = assets / f"portrait_{name}.jpg"
+        if old_jpg.exists():
+            old_jpg.unlink()
     print(f"exported {len(data['nodes'])} nodes, ~{data['minutes']} min")
 
 

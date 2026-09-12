@@ -63,7 +63,7 @@ function setPortrait(id) {
     img.removeAttribute("src");
     return;
   }
-  img.src = `assets/portrait_${id}.jpg`;
+  img.src = `assets/portrait_${id}.png`;
   img.style.display = "block";
 }
 

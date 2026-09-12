@@ -45,6 +45,22 @@ SCENE_TITLES = {
     "subway": "地铁",
     "platform": "站台",
     "rooftop": "屋顶",
+    "hutong": "胡同",
+    "avenue": "珠市口",
+    "xidan_road": "去西单",
+    "aqua_road": "去海洋馆",
+    "dawn_apt": "黎明老楼",
+    "mall_mid": "商场夹层",
+    "aqua_tunnel": "海底隧道",
+    "riverbank": "河岸",
+    "nameless_lane": "无名巷",
+    "metro_gate": "无名地铁口",
+    "gap_tunnel": "两站之间",
+    "pale_dawn": "无太阳的早晨",
+    "morning_st": "清晨大街",
+    "home_rain": "回家的雨",
+    "duty_room": "值班室",
+    "wave_plat": "挥手的站",
 }
 
 

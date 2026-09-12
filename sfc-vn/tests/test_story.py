@@ -1,5 +1,6 @@
 from game.nodes import EndingNode, estimate_minutes
-from game.story import START_NODE, STORY, collect_charset, screen_count, story_graph_errors
+from game.story import SCENE_TITLES, START_NODE, STORY, collect_charset, screen_count, story_graph_errors
+from tools.art import all_scene_names
 
 
 def test_story_graph_is_complete() -> None:
@@ -13,6 +14,13 @@ def test_three_routes_and_nine_endings() -> None:
     assert any(name.startswith("end_tape") for name in endings)
     assert any(name.startswith("end_aqua") for name in endings)
     assert any(name.startswith("end_rail") for name in endings)
+
+
+def test_story_scenes_have_art() -> None:
+    names = set(all_scene_names())
+    for node in STORY.values():
+        assert node.scene in names
+        assert node.scene in SCENE_TITLES
 
 
 def test_long_enough_for_one_hour() -> None:
