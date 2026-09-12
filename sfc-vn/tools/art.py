@@ -298,9 +298,9 @@ def _fallback_portrait(name: str) -> Image.Image:
     d = ImageDraw.Draw(im)
     if name == "linxia":
         d.ellipse((18, 14, 54, 56), fill=(255, 214, 180))
-        d.pieslice((12, 4, 60, 48), 180, 360, fill=(28, 20, 18))
-        d.polygon([(12, 24), (6, 58), (20, 44)], fill=(28, 20, 18))
-        d.polygon([(60, 24), (66, 58), (52, 44)], fill=(28, 20, 18))
+        d.pieslice((12, 4, 60, 48), 180, 360, fill=(168, 172, 178))
+        d.polygon([(12, 24), (6, 58), (20, 44)], fill=(168, 172, 178))
+        d.polygon([(60, 24), (66, 58), (52, 44)], fill=(168, 172, 178))
         _eyes(d, 30)
         d.arc((30, 36, 42, 46), 20, 160, fill=(180, 80, 90), width=2)
         d.rectangle((20, 54, 52, 94), fill=(255, 208, 46))
