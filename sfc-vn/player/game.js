@@ -182,6 +182,10 @@ function askQuit() {
 }
 
 function quitGame() {
+  if (window.City11Native && typeof window.City11Native.exit === "function") {
+    window.City11Native.exit();
+    return;
+  }
   if (document.fullscreenElement) document.exitFullscreen?.().catch(() => {});
   state.nodeId = "__quit";
   state.menu = ["重新开始"];

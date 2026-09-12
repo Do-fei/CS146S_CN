@@ -26,7 +26,23 @@ python3 -m http.server -d player 8765
 
 Pocket MICRO 可用实体键：十字键上下选，A／下键确定，B／Start 开菜单。若 AB 反了，在 AYASpace 把 ABXY 改成 Xbox 布局。也仍可用触摸。
 
-以后打 APK 时，这套按键逻辑可以继续用：网页同时听 **Android 键码**（十字键 19/20、A=96、B=97、Start=108）和 **Gamepad API**。WebView 里通常是键码在干活，Chrome 里才比较靠手柄 API。打包时不要在原生层把按键吃掉，返回键交给页面开菜单，不要直接 `finish()` 退出 Activity。
+## 掌机 APK（AYANEO Pocket MICRO）
+
+真机侧载：`dist/city11.apk`（包名 `cn.dawei.city11`）。横屏全屏，存档写在应用本地，返回键开游戏菜单而不是退出。
+
+1. 把 APK 拷到掌机，允许「安装未知应用」后点安装。
+2. 若 A／B 反了，在 AYASpace 把 ABXY 改成 Xbox 布局。
+3. 卸载重装会清档；覆盖安装（同一签名）会保留存档。
+
+从源码再打一包：
+
+```bash
+# 需要 Android SDK（platforms;android-34 与 build-tools;34.0.0）
+export ANDROID_SDK=$HOME/android-sdk
+make apk
+```
+
+网页同时听 **Android 键码**（十字键 19/20、A=96、B=97、Start=108）和 **Gamepad API**。WebView 里通常是键码在干活。原生层不要把按键吃掉。
 
 - **点屏幕 / A / Z / 空格**：继续、确认
 - **↑↓ / 点选项**：移动或选定选项
