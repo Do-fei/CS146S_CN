@@ -53,7 +53,7 @@ function node() {
 }
 
 function setBg(scene) {
-  $("bg").src = `assets/scene_${scene || "title"}.png`;
+  $("bg").src = `assets/scene_${scene || "title"}.jpg`;
 }
 
 function setPortrait(id) {
@@ -63,7 +63,7 @@ function setPortrait(id) {
     img.removeAttribute("src");
     return;
   }
-  img.src = `assets/portrait_${id}.png`;
+  img.src = `assets/portrait_${id}.jpg`;
   img.style.display = "block";
 }
 

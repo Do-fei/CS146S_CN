@@ -1,4 +1,4 @@
-"""彩色场景与立绘（网页用真彩，卡带再量化）。"""
+"""绘画场景与立绘：网页用高清音小说插画，卡带仍用量化和几何底图。"""
 
 from __future__ import annotations
 
@@ -7,7 +7,13 @@ from pathlib import Path
 from PIL import Image, ImageDraw, ImageFont
 
 FONT_PATH = Path("/usr/share/fonts/truetype/wqy/wqy-microhei.ttc")
+ART_ROOT = Path(__file__).resolve().parents[1] / "art"
+SCENE_DIR = ART_ROOT / "scenes"
+PORTRAIT_DIR = ART_ROOT / "portraits"
 W, H = 256, 224
+WEB_SCENE = (768, 672)
+WEB_PORTRAIT = (360, 480)
+SNES_PORTRAIT = (72, 96)
 
 
 def _font(size: int) -> ImageFont.FreeTypeFont:
@@ -19,7 +25,24 @@ def new_scene(bg: tuple[int, int, int]) -> tuple[Image.Image, ImageDraw.ImageDra
     return im, ImageDraw.Draw(im)
 
 
-def paint_scene(name: str) -> Image.Image:
+def _cover(im: Image.Image, size: tuple[int, int]) -> Image.Image:
+    tw, th = size
+    sw, sh = im.size
+    scale = max(tw / sw, th / sh)
+    nw, nh = max(1, int(round(sw * scale))), max(1, int(round(sh * scale)))
+    im = im.resize((nw, nh), Image.Resampling.LANCZOS)
+    left = max(0, (nw - tw) // 2)
+    top = max(0, (nh - th) // 2)
+    return im.crop((left, top, left + tw, top + th))
+
+
+def _open_rgb(path: Path) -> Image.Image | None:
+    if path.exists():
+        return Image.open(path).convert("RGB")
+    return None
+
+
+def _fallback_scene(name: str) -> Image.Image:
     fn = {
         "title": _title,
         "apartment": _apartment,
@@ -39,6 +62,21 @@ def paint_scene(name: str) -> Image.Image:
         "rooftop": _rooftop,
     }.get(name, _street_rain)
     return fn()
+
+
+def paint_scene(name: str, size: tuple[int, int] = (W, H), *, painted: bool = True) -> Image.Image:
+    src = None
+    if painted:
+        src = _open_rgb(SCENE_DIR / f"{name}.jpg") or _open_rgb(SCENE_DIR / f"{name}.png")
+    if src is None:
+        src = _fallback_scene(name)
+    if src.size != size:
+        return _cover(src, size)
+    return src
+
+
+def paint_scene_web(name: str) -> Image.Image:
+    return paint_scene(name, WEB_SCENE)
 
 
 def _title() -> Image.Image:
@@ -236,8 +274,8 @@ def _eyes(d: ImageDraw.ImageDraw, y: int = 30) -> None:
     d.point((42, y + 2), fill=(255, 255, 255))
 
 
-def paint_portrait(name: str) -> Image.Image:
-    im = Image.new("RGBA", (72, 96), (0, 0, 0, 0))
+def _fallback_portrait(name: str) -> Image.Image:
+    im = Image.new("RGBA", SNES_PORTRAIT, (0, 0, 0, 0))
     d = ImageDraw.Draw(im)
     if name == "linxia":
         d.ellipse((18, 14, 54, 56), fill=(255, 214, 180))
@@ -292,6 +330,20 @@ def paint_portrait(name: str) -> Image.Image:
         d.ellipse((18, 16, 54, 54), fill=(80, 40, 120))
         d.rectangle((22, 54, 50, 94), fill=(40, 20, 60))
     return im
+
+
+def paint_portrait(name: str, size: tuple[int, int] = SNES_PORTRAIT) -> Image.Image:
+    src = _open_rgb(PORTRAIT_DIR / f"{name}.jpg") or _open_rgb(PORTRAIT_DIR / f"{name}.png")
+    if src is None:
+        fb = _fallback_portrait(name)
+        if fb.size == size:
+            return fb
+        return fb.resize(size, Image.Resampling.NEAREST).convert("RGBA")
+    return _cover(src, size).convert("RGBA")
+
+
+def paint_portrait_web(name: str) -> Image.Image:
+    return paint_portrait(name, WEB_PORTRAIT)
 
 
 def all_scene_names() -> list[str]:

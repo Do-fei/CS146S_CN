@@ -12,3 +12,4 @@ def test_portraits_exist() -> None:
         im = paint_portrait(name)
         assert im.size == (72, 96)
         assert im.mode == "RGBA"
+        assert im.getextrema()[0][1] > 20

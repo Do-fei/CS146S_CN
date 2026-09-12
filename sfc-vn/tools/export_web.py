@@ -11,7 +11,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
 from game.story import story_to_plain
-from tools.art import all_portrait_names, all_scene_names, paint_portrait, paint_scene
+from tools.art import all_portrait_names, all_scene_names, paint_portrait_web, paint_scene_web
 
 
 def export(out: Path) -> None:
@@ -20,9 +20,9 @@ def export(out: Path) -> None:
     data = story_to_plain()
     (out / "story.json").write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
     for name in all_scene_names():
-        paint_scene(name).save(assets / f"scene_{name}.png")
+        paint_scene_web(name).convert("RGB").save(assets / f"scene_{name}.jpg", quality=84, optimize=True)
     for name in all_portrait_names():
-        paint_portrait(name).save(assets / f"portrait_{name}.png")
+        paint_portrait_web(name).convert("RGB").save(assets / f"portrait_{name}.jpg", quality=88, optimize=True)
     print(f"exported {len(data['nodes'])} nodes, ~{data['minutes']} min")
 
 

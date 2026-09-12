@@ -698,7 +698,7 @@ def build_rom() -> bytes:
 
     scenes: list[bytes] = []
     for name in SCENE_NAMES:
-        tiles, tilemap, colors = image_to_tiles(paint_scene(name))
+        tiles, tilemap, colors = image_to_tiles(paint_scene(name, painted=False))
         tile_count = len(tiles) // 32
         if tile_count > 240:
             raise RuntimeError(f"scene {name} too many tiles: {tile_count}")
