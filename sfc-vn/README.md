@@ -1,37 +1,48 @@
-# 月见桥
+# 十一点的城市
 
-一款原创 **SFC / 超任** 文字冒险视觉小说。中秋前夜，邮局里出现一封折成纸船、没有名字的信；你在月见桥上决定它的去向。
+彩色都市灵异文字冒险。林夏失踪第三天，短信把你约到天桥。三条路：倒带馆、夜水族、无名站。每条线有关键抉择和独立结局。
 
-游戏是从零写的 65816 引擎，不是任何商业卡带的修改或汉化。
+从零写的原创作品，不是任何商业游戏的汉化。
 
-<p align="center">
-  <img src="docs/title.png" alt="标题画面" width="256">
-  <img src="docs/dialogue.png" alt="对白" width="256">
-  <img src="docs/choice.png" alt="选项" width="256">
-</p>
+## 怎么玩（推荐网页）
 
-## 怎么玩
+用浏览器打开 `player/index.html`（需本地服务器，见下）。彩色立绘、随时存读三格档。
 
-1. 用任意超任 / SNES 模拟器打开 `dist/yuejianqiao.sfc`（Snes9x、bsnes、RetroArch 均可）。
-2. 标题画面按 **Start**。
-3. 对话按 **A** 继续。
-4. 选项用 **十字键上下** 移动，**A** 确定。
-5. 三个结局：灯火团圆、信去远方、桥上守候。结局后回到标题。
+```bash
+cd sfc-vn
+python3 tools/export_web.py
+python3 -m http.server -d player 8765
+```
+
+然后访问 `http://127.0.0.1:8765`。
+
+- **Z / 空格 / 点击**：继续、确认
+- **↑↓**：移动选项
+- **Esc**：菜单，随时保存或读取（三格）
+
+单条线大约四五十分钟阅读，加上看画面和存档，一轮接近一小时。三条线可重玩。
+
+## 超任卡带
+
+`dist/city11.sfc` 可用 Snes9x / bsnes / RetroArch 打开。
+
+- **Start**：进游戏；游戏中 **Start 存档**（SRAM 槽）
+- **Select**：读档
+- **A**：继续 / 确认
+- **上下**：选项
 
 ## 从源码重建
 
 ```bash
 python3 -m pip install pillow pytest
 make test
+make web
 make rom
 ```
 
-依赖系统里的中文字体 `fonts-wqy-microhei`，用来把剧本里实际用到的汉字打成 16×16 点阵。
-
 ## 目录
 
-- `game/story.py` — 剧本与分支
-- `tools/build_rom.py` — 65816 引擎与 ROM 组装
-- `tools/snes_gfx.py` — 字库、场景、4bpp 转换
-- `tools/mini_snes.py` — 本游戏用的迷你模拟器（测试 / 出图）
-- `dist/yuejianqiao.sfc` — 可直接玩的卡带镜像
+- `game/route_*.py` — 开场与三条分支剧本
+- `player/` — 彩色网页运行时
+- `tools/art.py` — 场景与立绘
+- `tools/build_rom.py` — 65816 引擎与 `.sfc`

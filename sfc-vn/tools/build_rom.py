@@ -10,16 +10,9 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from game.story import (  # noqa: E402
-    START_NODE,
-    STORY,
-    TITLE_HINT,
-    ChoiceNode,
-    EndingNode,
-    TextNode,
-    collect_charset,
-    story_graph_errors,
-)
+from game.nodes import ChoiceNode, EndingNode, TextNode, paginate  # noqa: E402
+from game.story import START_NODE, STORY, TITLE, TITLE_HINT, story_graph_errors  # noqa: E402
+from tools.art import all_scene_names, paint_scene  # noqa: E402
 from tools.asm65816 import Asm, lorom_offset  # noqa: E402
 from tools.snes_gfx import (  # noqa: E402
     TEXT_PALETTE,
@@ -28,11 +21,10 @@ from tools.snes_gfx import (  # noqa: E402
     make_font_tiles,
     make_text_tilemap,
     pack_palette,
-    paint_scene,
 )
 
-ROM_SIZE = 256 * 1024
-SCENE_NAMES = ["title", "post", "street", "bridge", "home", "lantern"]
+ROM_SIZE = 4 * 1024 * 1024
+SCENE_NAMES = all_scene_names()
 SCENE_TILE_BYTES = 240 * 32
 OP_SCENE = 1
 OP_TEXT = 2
@@ -58,9 +50,9 @@ def write_header(rom: bytearray, title: str) -> None:
     base = lorom_offset(0x80, 0xFFC0)
     rom[base : base + 21] = name
     rom[lorom_offset(0x80, 0xFFD5)] = 0x20
-    rom[lorom_offset(0x80, 0xFFD6)] = 0x00
-    rom[lorom_offset(0x80, 0xFFD7)] = 0x08
-    rom[lorom_offset(0x80, 0xFFD8)] = 0x00
+    rom[lorom_offset(0x80, 0xFFD6)] = 0x02
+    rom[lorom_offset(0x80, 0xFFD7)] = 0x0C
+    rom[lorom_offset(0x80, 0xFFD8)] = 0x03
     rom[lorom_offset(0x80, 0xFFD9)] = 0x00
     rom[lorom_offset(0x80, 0xFFDA)] = 0x00
     rom[lorom_offset(0x80, 0xFFDB)] = 0x00
@@ -140,7 +132,6 @@ def emit_engine(a: Asm) -> None:
     a.stz_dp(JOY_PREV)
     a.stz_dp(JOY_NEW)
     a.sep(0x20)
-    a.jsr("dma_font")
     a.jsr("dma_text_palette")
     a.lda_imm(0x81)
     a.sta_abs(0x4200)
@@ -162,6 +153,12 @@ def emit_engine(a: Asm) -> None:
     a.label("title_loop")
     a.jsr("wait_nmi")
     a.jsr("read_joy")
+    a.lda_dp(JOY_NEW + 1)
+    a.and_imm(0x20)
+    a.beq("title_not_sel")
+    a.jsr("sram_load")
+    a.jmp("interp")
+    a.label("title_not_sel")
     a.lda_dp(JOY_NEW + 1)
     a.and_imm(0x10)
     a.beq("title_loop")
@@ -261,6 +258,18 @@ def emit_engine(a: Asm) -> None:
     a.sta_dp(CHOICE_I)
     a.jmp("choice_show")
     a.label("choice_not_down")
+    a.lda_dp(JOY_NEW + 1)
+    a.and_imm(0x10)
+    a.beq("choice_not_start")
+    a.jsr("sram_save")
+    a.jmp("choice_wait")
+    a.label("choice_not_start")
+    a.lda_dp(JOY_NEW + 1)
+    a.and_imm(0x20)
+    a.beq("choice_not_sel")
+    a.jsr("sram_load")
+    a.jmp("interp")
+    a.label("choice_not_sel")
     a.lda_dp(JOY_NEW)
     a.and_imm(0x80)
     a.beq("choice_wait")
@@ -348,9 +357,45 @@ def emit_engine(a: Asm) -> None:
     a.label("wait_a_loop")
     a.jsr("wait_nmi")
     a.jsr("read_joy")
+    a.lda_dp(JOY_NEW + 1)
+    a.and_imm(0x10)
+    a.beq("wait_a_not_start")
+    a.jsr("sram_save")
+    a.bra("wait_a_loop")
+    a.label("wait_a_not_start")
+    a.lda_dp(JOY_NEW + 1)
+    a.and_imm(0x20)
+    a.beq("wait_a_not_sel")
+    a.jsr("sram_load")
+    a.jmp("interp")
+    a.label("wait_a_not_sel")
     a.lda_dp(JOY_NEW)
     a.and_imm(0x80)
     a.beq("wait_a_loop")
+    a.rts()
+
+    a.label("sram_save")
+    a.lda_dp(SCRIPT)
+    a.sta_long(0x700000)
+    a.lda_dp(SCRIPT + 1)
+    a.sta_long(0x700001)
+    a.lda_dp(SCRIPT + 2)
+    a.sta_long(0x700002)
+    a.lda_imm(0x11)
+    a.sta_long(0x700003)
+    a.rts()
+
+    a.label("sram_load")
+    a.lda_long(0x700003)
+    a.cmp_imm(0x11)
+    a.bne("sram_load_fail")
+    a.lda_long(0x700000)
+    a.sta_dp(SCRIPT)
+    a.lda_long(0x700001)
+    a.sta_dp(SCRIPT + 1)
+    a.lda_long(0x700002)
+    a.sta_dp(SCRIPT + 2)
+    a.label("sram_load_fail")
     a.rts()
 
     a.label("load_scene")
@@ -412,9 +457,43 @@ def emit_engine(a: Asm) -> None:
     a.inx()
     a.lda_absx("page_table")
     a.sta_dp(SRC + 2)
+    a.lda_il(SRC)
+    a.sta_dp(TMP)
+    a.jsr("inc_src")
+    a.lda_il(SRC)
+    a.sta_dp(TMP + 1)
+    a.jsr("inc_src")
+    a.rep(0x20)
+    a.lda_dp(TMP)
+    a.tay()
+    a.sep(0x20)
+    a.ldx_imm(0x2000)
+    a.jsr("dma_vram")
+    a.jsr("add_src_y")
     a.ldx_imm(0x1400)
     a.ldy_imm(0x0800)
     a.jsr("dma_vram")
+    a.rts()
+
+    a.label("inc_src")
+    a.inc_dp(SRC)
+    a.bne("inc_src_ok")
+    a.inc_dp(SRC + 1)
+    a.bne("inc_src_ok")
+    a.inc_dp(SRC + 2)
+    a.label("inc_src_ok")
+    a.rts()
+
+    a.label("add_src_y")
+    a.rep(0x20)
+    a.tya()
+    a.clc()
+    a.adc_dp(SRC)
+    a.sta_dp(SRC)
+    a.sep(0x20)
+    a.bcc("add_src_y_ok")
+    a.inc_dp(SRC + 2)
+    a.label("add_src_y_ok")
     a.rts()
 
     a.label("add_src_tiles")
@@ -518,39 +597,55 @@ def align_bank(bank: int, addr: int) -> tuple[int, int]:
     return bank, addr
 
 
-def build_pages(mapping: dict[str, int]) -> list[bytes]:
-    pages: list[bytes] = []
-    title_words = make_text_tilemap(
-        ["", "", "", TITLE_HINT],
-        mapping,
-        overlays=[(13, 8, "月见桥"), (8, 12, "一封没有名字的信")],
-    )
-    pages.append(encode_tilemap_words(title_words))
-    return pages
+def bake_page(lines: list[str], overlays: list[tuple[int, int, str]] | None = None, cursor_row: int | None = None) -> bytes:
+    chars: list[str] = []
+    seen: set[str] = set()
+    for line in lines:
+        for ch in line:
+            if ch not in seen:
+                seen.add(ch)
+                chars.append(ch)
+    for _x, _y, text in overlays or []:
+        for ch in text:
+            if ch not in seen:
+                seen.add(ch)
+                chars.append(ch)
+    if "　" not in seen:
+        chars.append("　")
+    tiles, mapping = make_font_tiles(chars)
+    words = make_text_tilemap(lines, mapping, cursor_row=cursor_row, overlays=overlays)
+    return len(tiles).to_bytes(2, "little") + tiles + encode_tilemap_words(words)
 
 
-def compile_story(mapping: dict[str, int]) -> tuple[list[bytes], dict[str, bytes], dict[str, int]]:
-    pages = build_pages(mapping)
+def compile_story() -> tuple[list[bytes], dict[str, list[int]], dict[str, list[int]]]:
+    pages = [
+        bake_page(
+            ["", "", "", TITLE_HINT],
+            overlays=[(6, 8, TITLE), (6, 12, "三条不该存在的路")],
+        )
+    ]
     page_ids: dict[str, list[int]] = {}
-    node_pages: dict[str, int] = {}
-
+    node_pages: dict[str, list[int]] = {}
     for name, node in STORY.items():
         if isinstance(node, TextNode):
-            words = make_text_tilemap(list(node.lines), mapping)
-            node_pages[name] = len(pages)
-            pages.append(encode_tilemap_words(words))
+            ids = []
+            for screen in paginate(node.text, 14, 4):
+                ids.append(len(pages))
+                pages.append(bake_page(screen))
+            node_pages[name] = ids
         elif isinstance(node, EndingNode):
-            lines = [node.title, *node.lines[:3]]
-            words = make_text_tilemap(lines, mapping)
-            node_pages[name] = len(pages)
-            pages.append(encode_tilemap_words(words))
+            ids = [len(pages)]
+            pages.append(bake_page([node.title]))
+            for screen in paginate(node.text, 14, 4):
+                ids.append(len(pages))
+                pages.append(bake_page(screen))
+            node_pages[name] = ids
         else:
             ids = []
+            lines = [node.prompt, *(text for text, _ in node.options)]
             for sel in range(len(node.options)):
-                lines = [node.prompt, *(text for text, _ in node.options)]
-                words = make_text_tilemap(lines, mapping, cursor_row=1 + sel)
                 ids.append(len(pages))
-                pages.append(encode_tilemap_words(words))
+                pages.append(bake_page(lines, cursor_row=1 + sel))
             page_ids[name] = ids
     return pages, page_ids, node_pages
 
@@ -568,8 +663,9 @@ def emit_script(a: Asm, page_ids: dict[str, list[int]], node_pages: dict[str, in
         scene = SCENE_NAMES.index(node.scene)
         a.db(OP_SCENE, scene)
         if isinstance(node, TextNode):
-            a.db(OP_TEXT)
-            a.dw(node_pages[name])
+            for pid in node_pages[name]:
+                a.db(OP_TEXT)
+                a.dw(pid)
             a.db(OP_JUMP)
             emit_ptr(node.next)
         elif isinstance(node, ChoiceNode):
@@ -578,8 +674,11 @@ def emit_script(a: Asm, page_ids: dict[str, list[int]], node_pages: dict[str, in
                 a.dw(page_ids[name][i])
                 emit_ptr(dest)
         else:
+            for pid in node_pages[name][:-1]:
+                a.db(OP_TEXT)
+                a.dw(pid)
             a.db(OP_END)
-            a.dw(node_pages[name])
+            a.dw(node_pages[name][-1])
 
     a.resolve()
     for offset, target in pending:
@@ -594,9 +693,8 @@ def build_rom() -> bytes:
     if errors:
         raise RuntimeError("story errors: " + "; ".join(errors))
 
-    charset = collect_charset()
-    font_blob, mapping = make_font_tiles(charset)
-    pages, page_ids, node_pages = compile_story(mapping)
+    pages, page_ids, node_pages = compile_story()
+    font_blob = b"\x00\x00"
 
     scenes: list[bytes] = []
     for name in SCENE_NAMES:
@@ -639,12 +737,13 @@ def build_rom() -> bytes:
     a.label("page_table")
     page_table_off = a.offset()
     a.emit(*([0] * (len(pages) * 3)))
-
-    emit_script(a, page_ids, node_pages)
     if a.addr >= 0xFFC0:
         raise RuntimeError("bank 80 overflow into header")
 
-    data_bank, data_addr = 0x81, 0x8000
+    a.org(0x81, 0x8000)
+    emit_script(a, page_ids, node_pages)
+
+    data_bank, data_addr = 0x82, 0x8000
 
     def put(data: bytes) -> tuple[int, int]:
         nonlocal data_bank, data_addr
@@ -683,7 +782,7 @@ def build_rom() -> bytes:
 
     a.resolve()
     write_vectors(a)
-    write_header(rom, "YUEJIANQIAO")
+    write_header(rom, "CITY11")
     return bytes(rom)
 
 
@@ -693,7 +792,7 @@ def main() -> None:
         "-o",
         "--output",
         type=Path,
-        default=ROOT / "dist" / "yuejianqiao.sfc",
+        default=ROOT / "dist" / "city11.sfc",
     )
     args = parser.parse_args()
     args.output.parent.mkdir(parents=True, exist_ok=True)

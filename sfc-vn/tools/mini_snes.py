@@ -91,6 +91,8 @@ class CPU:
             return 0
         if bank == 0x7E:
             return self.wram[addr]
+        if 0x70 <= bank <= 0x7D and addr < 0x8000:
+            return self.wram[0x10000 + ((bank - 0x70) * 0x8000 + addr) & 0x1FFFF]
         return 0
 
     def write8(self, bank: int, addr: int, value: int) -> None:
@@ -101,6 +103,9 @@ class CPU:
             return
         if bank == 0x7E:
             self.wram[addr] = value
+            return
+        if 0x70 <= bank <= 0x7D and addr < 0x8000:
+            self.wram[0x10000 + ((bank - 0x70) * 0x8000 + addr) & 0x1FFFF] = value
             return
         if 0x2100 <= addr <= 0x21FF and self._sys_bank(bank):
             self.write_ppu(addr, value)
@@ -386,6 +391,14 @@ class CPU:
                 self._write_dp(self.fetch8(), self.get_a())
             case 0x64:
                 self._write_dp(self.fetch8(), 0)
+            case 0xAF:
+                lo = self.fetch16()
+                bank = self.fetch8()
+                self.set_a(self.read8(bank, lo) if self.m else self.read16(bank, lo))
+            case 0x8F:
+                lo = self.fetch16()
+                bank = self.fetch8()
+                self._write_abs_bank(bank, lo, self.get_a())
             case 0xAD:
                 self.set_a(self._read_abs(self.fetch16()))
             case 0x8D:
@@ -544,9 +557,12 @@ class CPU:
         return self.read16(self.dbr, addr)
 
     def _write_abs(self, addr: int, value: int) -> None:
-        self.write8(self.dbr, addr, value & 0xFF)
+        self._write_abs_bank(self.dbr, addr, value)
+
+    def _write_abs_bank(self, bank: int, addr: int, value: int) -> None:
+        self.write8(bank, addr, value & 0xFF)
         if not self.m:
-            self.write8(self.dbr, (addr + 1) & 0xFFFF, (value >> 8) & 0xFF)
+            self.write8(bank, (addr + 1) & 0xFFFF, (value >> 8) & 0xFF)
 
     def _inc_mem(self, dec: bool) -> None:
         dp = self.fetch8()

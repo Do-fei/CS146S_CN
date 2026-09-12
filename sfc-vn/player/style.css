@@ -1,0 +1,152 @@
+:root {
+  --ink: #fff6d8;
+  --dim: #9ad7ff;
+  --box: #140c28ee;
+  --line: #ffd45a;
+  --pink: #ff4b9a;
+  --cyan: #3ef0d0;
+}
+
+* { box-sizing: border-box; }
+html, body {
+  margin: 0;
+  min-height: 100%;
+  background: #07060f;
+  color: var(--ink);
+  font-family: "WenQuanYi Micro Hei", "Microsoft YaHei", sans-serif;
+}
+
+#wrap {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 16px;
+}
+
+#screen {
+  position: relative;
+  width: 768px;
+  height: 672px;
+  image-rendering: pixelated;
+  box-shadow: 0 0 0 4px #2a1848, 0 0 0 8px var(--cyan), 0 20px 80px #ff4b9a44;
+  overflow: hidden;
+  background: #0a0820;
+}
+
+#bg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  image-rendering: pixelated;
+}
+
+#portrait {
+  position: absolute;
+  left: 18px;
+  top: 72px;
+  width: 216px;
+  height: 288px;
+  image-rendering: pixelated;
+  filter: drop-shadow(0 0 12px #3ef0d088);
+  display: none;
+}
+
+#place {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  padding: 4px 10px;
+  background: #ff4b9add;
+  color: #fff;
+  font-size: 14px;
+  letter-spacing: 0.12em;
+}
+
+#box {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 210px;
+  padding: 14px 20px 12px;
+  background: var(--box);
+  border-top: 4px solid var(--line);
+  box-shadow: inset 0 4px 0 #3ef0d055;
+}
+
+#who {
+  color: var(--cyan);
+  font-size: 16px;
+  margin-bottom: 6px;
+  min-height: 1.2em;
+}
+
+#text {
+  white-space: pre-wrap;
+  font-size: 22px;
+  line-height: 1.45;
+  letter-spacing: 0.06em;
+  min-height: 8.2em;
+}
+
+#hint {
+  text-align: right;
+  color: var(--dim);
+  font-size: 13px;
+}
+
+#overlay {
+  position: absolute;
+  inset: 0;
+  background: #07041ad9;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+#overlay.hidden { display: none; }
+
+#panel {
+  width: 420px;
+  padding: 22px 24px;
+  background: #1a1038;
+  border: 4px solid var(--pink);
+  box-shadow: 8px 8px 0 #3ef0d0;
+}
+
+#panel h2 {
+  margin: 0 0 14px;
+  font-size: 20px;
+  color: var(--line);
+}
+
+#panel .item {
+  padding: 8px 6px;
+  font-size: 18px;
+  cursor: pointer;
+}
+#panel .item.active {
+  background: #ff4b9a;
+  color: #fff;
+}
+#panel .slotmeta {
+  display: block;
+  font-size: 12px;
+  color: #c9b8ff;
+  margin-top: 2px;
+}
+
+.help {
+  margin: 0;
+  color: #8a7aa8;
+  font-size: 13px;
+}
+
+@media (max-width: 820px) {
+  #screen { width: 100%; max-width: 768px; height: auto; aspect-ratio: 256 / 224; }
+  #text { font-size: 16px; }
+  #box { height: 36%; }
+}

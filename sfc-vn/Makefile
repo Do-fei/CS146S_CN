@@ -1,15 +1,15 @@
 PYTHON ?= python3
-DIST := dist/yuejianqiao.sfc
+DIST := dist/city11.sfc
 
-.PHONY: all rom preview test clean
+.PHONY: all rom web test clean
 
-all: rom
+all: rom web
 
 rom:
 	$(PYTHON) tools/build_rom.py -o $(DIST)
 
-preview:
-	$(PYTHON) tools/preview.py
+web:
+	$(PYTHON) tools/export_web.py
 
 test:
 	$(PYTHON) -m pytest -q
