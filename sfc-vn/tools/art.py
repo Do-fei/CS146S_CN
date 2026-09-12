@@ -11,8 +11,8 @@ ART_ROOT = Path(__file__).resolve().parents[1] / "art"
 SCENE_DIR = ART_ROOT / "scenes"
 PORTRAIT_DIR = ART_ROOT / "portraits"
 W, H = 256, 224
-WEB_SCENE = (768, 672)
-WEB_PORTRAIT = (360, 480)
+WEB_SCENE = (960, 640)
+WEB_PORTRAIT = (420, 560)
 SNES_PORTRAIT = (72, 96)
 
 

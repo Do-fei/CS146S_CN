@@ -1,4 +1,4 @@
-const WIDTH = 16;
+const WIDTH = 18;
 const ROWS = 4;
 const SAVE_KEY = "city11_saves_v1";
 
@@ -67,24 +67,49 @@ function setPortrait(id) {
   img.style.display = "block";
 }
 
+function escapeHtml(s) {
+  return String(s)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+}
+
 function renderText() {
   const n = node();
   $("place").textContent = n.place || "";
   $("who").textContent = n.portrait ? state.data.portraits[n.portrait] || "" : "";
   if (n.type === "choice") {
-    const lines = [n.prompt, ...n.options.map((o, i) => `${i === state.choice ? "▶ " : "　"}${o.text}`)];
-    $("text").textContent = lines.join("\n");
-    $("hint").textContent = "上下选择　Z确定　Esc菜单";
+    const prompt = `<div class="prompt">${escapeHtml(n.prompt)}</div>`;
+    const opts = n.options
+      .map((o, i) => {
+        const mark = i === state.choice ? "▶ " : "　";
+        const on = i === state.choice ? " on" : "";
+        return `<div class="choice${on}" data-i="${i}">${mark}${escapeHtml(o.text)}</div>`;
+      })
+      .join("");
+    $("text").innerHTML = prompt + opts;
+    $("hint").textContent = "上下选择　点选项或A确定";
+    [...$("text").querySelectorAll(".choice")].forEach((el) => {
+      el.onclick = (ev) => {
+        ev.stopPropagation();
+        const i = Number(el.dataset.i);
+        if (state.choice === i) advance();
+        else {
+          state.choice = i;
+          renderText();
+        }
+      };
+    });
     return;
   }
   if (n.type === "ending") {
     const pages = [[n.title], ...paginate(n.text, WIDTH, ROWS)];
     $("text").textContent = (pages[state.page] || []).join("\n");
-    $("hint").textContent = state.page + 1 >= pages.length ? "Z 回到标题" : "Z 继续　Esc菜单";
+    $("hint").textContent = state.page + 1 >= pages.length ? "点屏幕回到标题" : "点屏幕继续　Start菜单";
     return;
   }
   $("text").textContent = (state.pages[state.page] || []).join("\n");
-  $("hint").textContent = "Z 继续　Esc 随时存读档";
+  $("hint").textContent = "点屏幕继续　Start／Esc 菜单";
 }
 
 function endingPages(n) {
@@ -281,10 +306,47 @@ function onKey(ev) {
   }
 }
 
+function tryFullscreen() {
+  if (document.fullscreenElement) return;
+  const landscape = window.innerWidth > window.innerHeight;
+  if (window.innerHeight <= 720 && landscape) {
+    document.documentElement.requestFullscreen?.().catch(() => {});
+  }
+}
+
+const padPrev = {};
+function padEdge(id, down) {
+  const was = !!padPrev[id];
+  padPrev[id] = down;
+  return down && !was;
+}
+
+function pollGamepad() {
+  const gp = navigator.getGamepads?.()[0];
+  if (gp) {
+    const axY = gp.axes[1] || 0;
+    if (padEdge("up", !!(gp.buttons[12] && gp.buttons[12].pressed) || axY < -0.55)) move(-1);
+    if (padEdge("down", !!(gp.buttons[13] && gp.buttons[13].pressed) || axY > 0.55)) move(1);
+    if (padEdge("a", !!(gp.buttons[0] && gp.buttons[0].pressed) || !!(gp.buttons[2] && gp.buttons[2].pressed))) {
+      advance();
+    }
+    if (padEdge("menu", !!(gp.buttons[1] && gp.buttons[1].pressed) || !!(gp.buttons[9] && gp.buttons[9].pressed) || !!(gp.buttons[8] && gp.buttons[8].pressed))) {
+      if (state.menu && state.menuKind !== "title") closeMenu();
+      else openMenu();
+    }
+  }
+  requestAnimationFrame(pollGamepad);
+}
+
 async function main() {
   state.data = await (await fetch("story.json")).json();
   document.addEventListener("keydown", onKey);
-  $("screen").addEventListener("click", () => advance());
+  $("screen").addEventListener("click", () => {
+    tryFullscreen();
+    advance();
+  });
+  window.addEventListener("gamepadconnected", () => {});
+  pollGamepad();
   showTitle();
 }
 

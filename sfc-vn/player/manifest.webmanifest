@@ -1,0 +1,9 @@
+{
+  "name": "十一点的城市",
+  "short_name": "十一点",
+  "start_url": "./",
+  "display": "fullscreen",
+  "orientation": "landscape",
+  "background_color": "#07040c",
+  "theme_color": "#07040c"
+}
