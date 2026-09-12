@@ -154,7 +154,7 @@ function advance() {
 
 function showTitle() {
   state.nodeId = "__title";
-  state.menu = ["开始游戏", "读取档案"];
+  state.menu = ["开始游戏", "读取档案", "退出游戏"];
   state.menuKind = "title";
   state.menuIndex = 0;
   setBg("title");
@@ -167,11 +167,38 @@ function showTitle() {
 }
 
 function openMenu() {
-  if (state.nodeId === "__title") return;
-  state.menu = ["继续", "保存", "读取", "回标题"];
+  if (state.nodeId === "__title" || state.nodeId === "__quit") return;
+  state.menu = ["继续", "保存", "读取", "回标题", "退出游戏"];
   state.menuKind = "root";
   state.menuIndex = 0;
   drawOverlay();
+}
+
+function askQuit() {
+  state.menu = ["再想想", "确定退出"];
+  state.menuKind = "quitask";
+  state.menuIndex = 0;
+  drawOverlay();
+}
+
+function quitGame() {
+  if (document.fullscreenElement) document.exitFullscreen?.().catch(() => {});
+  state.nodeId = "__quit";
+  state.menu = ["重新开始"];
+  state.menuKind = "quit";
+  state.menuIndex = 0;
+  setBg("title");
+  setPortrait("");
+  $("place").textContent = "";
+  $("who").textContent = "";
+  $("text").textContent = `${state.data.title}\n\n已经退出。`;
+  $("hint").textContent = "";
+  drawOverlay();
+  try {
+    window.close();
+  } catch {
+    /* browsers only close windows they opened */
+  }
 }
 
 function slotLabel(slot, i) {
@@ -191,6 +218,8 @@ function drawOverlay() {
     root: "菜单　随时可存读",
     save: "保存到哪一格",
     load: "读取哪一格",
+    quitask: "要退出游戏吗",
+    quit: "已经退出",
   }[state.menuKind];
   const items = state.menu
     .map((label, i) => `<div class="item${i === state.menuIndex ? " active" : ""}" data-i="${i}">${label}</div>`)
@@ -216,12 +245,14 @@ function activateMenu() {
     if (i === 0) {
       closeMenu();
       enterNode(state.data.start);
-    } else {
+    } else if (i === 1) {
       state.menuKind = "load";
       const saves = loadSaves();
       state.menu = saves.map((s, idx) => `${slotLabel(s, idx)}${s ? `<span class="slotmeta">${s.when}　${s.preview}</span>` : ""}`);
       state.menuIndex = 0;
       drawOverlay();
+    } else {
+      askQuit();
     }
     return;
   }
@@ -239,10 +270,25 @@ function activateMenu() {
       state.menu = saves.map((s, idx) => `${slotLabel(s, idx)}${s ? `<span class="slotmeta">${s.when}　${s.preview}</span>` : ""}`);
       state.menuIndex = 0;
       drawOverlay();
-    } else {
+    } else if (i === 3) {
       closeMenu();
       showTitle();
+    } else {
+      askQuit();
     }
+    return;
+  }
+  if (kind === "quitask") {
+    if (i === 0) {
+      if (state.nodeId === "__title") showTitle();
+      else openMenu();
+    } else {
+      quitGame();
+    }
+    return;
+  }
+  if (kind === "quit") {
+    showTitle();
     return;
   }
   if (kind === "save") {
@@ -301,8 +347,14 @@ function onKey(ev) {
   else if (k === "ArrowUp" || k === "w") move(-1);
   else if (k === "Enter" || k === " " || k === "z" || k === "Z") advance();
   else if (k === "Escape") {
-    if (state.menu && state.menuKind !== "title") closeMenu();
-    else openMenu();
+    if (state.menuKind === "quitask") {
+      if (state.nodeId === "__title") showTitle();
+      else openMenu();
+    } else if (state.menu && state.menuKind !== "title" && state.menuKind !== "quit") {
+      closeMenu();
+    } else if (state.menuKind !== "quit") {
+      openMenu();
+    }
   }
 }
 
@@ -331,8 +383,14 @@ function pollGamepad() {
       advance();
     }
     if (padEdge("menu", !!(gp.buttons[1] && gp.buttons[1].pressed) || !!(gp.buttons[9] && gp.buttons[9].pressed) || !!(gp.buttons[8] && gp.buttons[8].pressed))) {
-      if (state.menu && state.menuKind !== "title") closeMenu();
-      else openMenu();
+      if (state.menuKind === "quitask") {
+        if (state.nodeId === "__title") showTitle();
+        else openMenu();
+      } else if (state.menu && state.menuKind !== "title" && state.menuKind !== "quit") {
+        closeMenu();
+      } else if (state.menuKind !== "quit") {
+        openMenu();
+      }
     }
   }
   requestAnimationFrame(pollGamepad);
