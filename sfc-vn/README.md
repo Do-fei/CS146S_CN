@@ -68,6 +68,11 @@ make web
 make rom
 ```
 
+## 文档
+
+- [设计理念](docs/设计理念.md) — 为什么这样写，选择为什么没有正确答案
+- [完整剧本](docs/完整剧本.md) — 全部对白、分支与九个结局（可由 `python3 tools/export_script.py` 重生成）
+
 ## 目录
 
 - `game/route_*.py` — 开场与三条分支剧本
