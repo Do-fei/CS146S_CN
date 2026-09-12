@@ -341,21 +341,47 @@ function move(dir) {
   }
 }
 
+function menuBack() {
+  if (state.menuKind === "quitask") {
+    if (state.nodeId === "__title") showTitle();
+    else openMenu();
+    return;
+  }
+  if (state.menu && state.menuKind !== "title" && state.menuKind !== "quit") {
+    closeMenu();
+    return;
+  }
+  if (state.menuKind !== "quit") openMenu();
+}
+
 function onKey(ev) {
   const k = ev.key;
-  if (k === "ArrowDown" || k === "s") move(1);
-  else if (k === "ArrowUp" || k === "w") move(-1);
-  else if (k === "Enter" || k === " " || k === "z" || k === "Z") advance();
-  else if (k === "Escape") {
-    if (state.menuKind === "quitask") {
-      if (state.nodeId === "__title") showTitle();
-      else openMenu();
-    } else if (state.menu && state.menuKind !== "title" && state.menuKind !== "quit") {
-      closeMenu();
-    } else if (state.menuKind !== "quit") {
-      openMenu();
-    }
-  }
+  const code = ev.keyCode || ev.which;
+  const up = k === "ArrowUp" || k === "w" || k === "W" || code === 19;
+  const down = k === "ArrowDown" || k === "s" || k === "S" || code === 20;
+  const ok =
+    k === "Enter" ||
+    k === " " ||
+    k === "z" ||
+    k === "Z" ||
+    k === "x" ||
+    k === "X" ||
+    code === 23 ||
+    code === 96 ||
+    code === 99;
+  const menu =
+    k === "Escape" ||
+    k === "Backspace" ||
+    k === "ContextMenu" ||
+    code === 4 ||
+    code === 97 ||
+    code === 108 ||
+    code === 109;
+  if (up || down || ok || menu) ev.preventDefault();
+  if (up) move(-1);
+  else if (down) move(1);
+  else if (ok) advance();
+  else if (menu) menuBack();
 }
 
 function tryFullscreen() {
@@ -367,30 +393,58 @@ function tryFullscreen() {
 }
 
 const padPrev = {};
+const padHold = {};
+function padPressed(gp, i) {
+  const b = gp.buttons[i];
+  return !!(b && (b.pressed || b.value > 0.5));
+}
+function padAxis(gp, i) {
+  return gp.axes && Number.isFinite(gp.axes[i]) ? gp.axes[i] : 0;
+}
 function padEdge(id, down) {
+  const now = performance.now();
   const was = !!padPrev[id];
   padPrev[id] = down;
-  return down && !was;
+  if (down && !was) {
+    padHold[id] = now;
+    return true;
+  }
+  if (down && was && now - (padHold[id] || 0) > 380) {
+    padHold[id] = now - 260;
+    return id === "up" || id === "down";
+  }
+  return false;
+}
+function padDpad(gp) {
+  const y = padAxis(gp, 1) || padAxis(gp, 3);
+  const hatY = padAxis(gp, 7) || padAxis(gp, 5);
+  const up = padPressed(gp, 12) || y < -0.5 || hatY < -0.5;
+  const down = padPressed(gp, 13) || y > 0.5 || hatY > 0.5;
+  return { up, down };
+}
+function firstGamepad() {
+  const pads = navigator.getGamepads?.() || [];
+  for (const gp of pads) {
+    if (gp && gp.buttons && gp.buttons.length) return gp;
+  }
+  return null;
 }
 
 function pollGamepad() {
-  const gp = navigator.getGamepads?.()[0];
+  const gp = firstGamepad();
   if (gp) {
-    const axY = gp.axes[1] || 0;
-    if (padEdge("up", !!(gp.buttons[12] && gp.buttons[12].pressed) || axY < -0.55)) move(-1);
-    if (padEdge("down", !!(gp.buttons[13] && gp.buttons[13].pressed) || axY > 0.55)) move(1);
-    if (padEdge("a", !!(gp.buttons[0] && gp.buttons[0].pressed) || !!(gp.buttons[2] && gp.buttons[2].pressed))) {
-      advance();
-    }
-    if (padEdge("menu", !!(gp.buttons[1] && gp.buttons[1].pressed) || !!(gp.buttons[9] && gp.buttons[9].pressed) || !!(gp.buttons[8] && gp.buttons[8].pressed))) {
-      if (state.menuKind === "quitask") {
-        if (state.nodeId === "__title") showTitle();
-        else openMenu();
-      } else if (state.menu && state.menuKind !== "title" && state.menuKind !== "quit") {
-        closeMenu();
-      } else if (state.menuKind !== "quit") {
-        openMenu();
-      }
+    const d = padDpad(gp);
+    if (padEdge("up", d.up)) move(-1);
+    if (padEdge("down", d.down)) move(1);
+    const faceA = padPressed(gp, 0) || padPressed(gp, 2);
+    const faceB = padPressed(gp, 1) || padPressed(gp, 3);
+    const start = padPressed(gp, 8) || padPressed(gp, 9) || padPressed(gp, 11);
+    if (state.menu) {
+      if (padEdge("a", faceA || (state.menuKind === "title" && faceB))) advance();
+      else if (padEdge("menu", start || (faceB && state.menuKind !== "title"))) menuBack();
+    } else {
+      if (padEdge("a", faceA || faceB)) advance();
+      else if (padEdge("menu", start)) menuBack();
     }
   }
   requestAnimationFrame(pollGamepad);
@@ -403,7 +457,9 @@ async function main() {
     tryFullscreen();
     advance();
   });
-  window.addEventListener("gamepadconnected", () => {});
+  window.addEventListener("gamepadconnected", () => {
+    $("hint").textContent = "已识别手柄　A确定　上下选　Start菜单";
+  });
   pollGamepad();
   showTitle();
 }
