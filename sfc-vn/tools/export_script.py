@@ -11,7 +11,6 @@ sys.path.insert(0, str(ROOT))
 
 from game.nodes import ChoiceNode, EndingNode, TextNode
 from game.story import PORTRAITS, START_NODE, STORY, TITLE, estimate_minutes
-from tools.deslop_export import deslop_export
 
 OUT = ROOT / "docs" / "完整剧本.md"
 
@@ -252,7 +251,7 @@ def build() -> str:
 
 
 def main() -> None:
-    text = deslop_export(build())
+    text = build()
     OUT.parent.mkdir(parents=True, exist_ok=True)
     OUT.write_text(text, encoding="utf-8")
     print(f"wrote {OUT} ({len(text)} chars, {text.count(chr(10))} lines)")
