@@ -1,0 +1,11 @@
+__pycache__/
+.pytest_cache/
+*.pyc
+dist/preview/
+dist/yuejianqiao.sfc
+android/.gradle/
+android/build/
+android/app/build/
+android/app/src/main/assets/
+android/local.properties
+android/.idea/
