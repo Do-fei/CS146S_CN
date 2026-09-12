@@ -26,6 +26,10 @@ PORTRAITS = {
     "zhou": "老周",
     "hai": "小海",
     "clerk": "店员",
+    "mom": "妈妈",
+    "teacher": "班主任",
+    "police": "警察",
+    "curator": "馆长",
 }
 
 SCENE_TITLES = {
@@ -61,6 +65,24 @@ SCENE_TITLES = {
     "home_rain": "回家的雨",
     "duty_room": "值班室",
     "wave_plat": "挥手的站",
+    "classroom": "空教室",
+    "school_gate": "校门口",
+    "school_hall": "教学楼走廊",
+    "zhao_home": "赵宜家",
+    "kitchen": "厨房",
+    "police_st": "派出所",
+    "stairwell": "楼道",
+    "night_market": "夜市",
+    "mall_3f": "商场三楼",
+    "tape_listen": "试听间",
+    "mall_food": "停业食街",
+    "mall_stairs": "天台通道",
+    "aqua_office": "馆长室",
+    "jellyfish": "水母厅",
+    "aqua_back": "后勤通道",
+    "river_fog": "雾里的长河",
+    "taxi_rear": "出租后座",
+    "nameless_map": "无名线路图",
 }
 
 

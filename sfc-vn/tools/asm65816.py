@@ -454,4 +454,9 @@ class Asm:
 
 
 def lorom_offset(bank: int, addr: int) -> int:
-    return ((bank & 0x7F) << 15) + (addr & 0x7FFF)
+    """4MB LoROM in $80-$FF, extra 4MB (ExLoROM) in $00-$7D."""
+    bank &= 0xFF
+    off = ((bank & 0x7F) << 15) + (addr & 0x7FFF)
+    if bank < 0x80:
+        off += 0x400000
+    return off

@@ -63,8 +63,8 @@ class CPU:
         self.sp = 0x01FF
         self.d = 0
         self.dbr = 0
-        self.pbr = 0
-        self.pc = self.read16(0, 0xFFFC)
+        self.pbr = 0x80
+        self.pc = self.read16(0x80, 0xFFFC)
 
     def _sys_bank(self, bank: int) -> bool:
         return bank < 0x40 or 0x80 <= bank <= 0xBF
@@ -308,14 +308,14 @@ class CPU:
             self.push16(self.pc)
             self.push8(self.get_p())
             self.i = 1
-            self.pc = self.read16(0, 0xFFFA)
+            self.pc = self.read16(0x80, 0xFFFA)
         else:
             self.push8(self.pbr)
             self.push16(self.pc)
             self.push8(self.get_p())
             self.i = 1
-            self.pbr = 0
-            self.pc = self.read16(0, 0xFFEA)
+            self.pbr = 0x80
+            self.pc = self.read16(0x80, 0xFFEA)
 
     def step(self) -> None:
         op = self.fetch8()

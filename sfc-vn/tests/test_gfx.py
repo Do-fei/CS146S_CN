@@ -14,7 +14,7 @@ def test_web_scenes_are_three_by_two() -> None:
 
 
 def test_portraits_exist() -> None:
-    for name in ("linxia", "qing", "zhou", "hai", "clerk"):
+    for name in ("linxia", "qing", "zhou", "hai", "clerk", "mom", "teacher", "police", "curator"):
         im = paint_portrait(name)
         assert im.size == (72, 96)
         assert im.mode == "RGBA"

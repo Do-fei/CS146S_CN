@@ -60,6 +60,24 @@ def _fallback_scene(name: str) -> Image.Image:
         "pale_dawn": "rooftop",
         "duty_room": "aquarium",
         "wave_plat": "platform",
+        "classroom": "apartment",
+        "school_gate": "street_rain",
+        "school_hall": "apartment",
+        "zhao_home": "apartment",
+        "kitchen": "apartment",
+        "police_st": "store",
+        "stairwell": "elevator",
+        "night_market": "street_rain",
+        "mall_3f": "mall",
+        "tape_listen": "tape_shop",
+        "mall_food": "mall",
+        "mall_stairs": "rooftop",
+        "aqua_office": "aquarium",
+        "jellyfish": "tank",
+        "aqua_back": "pump",
+        "river_fog": "overpass",
+        "taxi_rear": "bus",
+        "nameless_map": "platform",
     }
     key = aliases.get(name, name)
     fn = {
@@ -345,6 +363,37 @@ def _fallback_portrait(name: str) -> Image.Image:
         d.rectangle((20, 56, 52, 94), fill=(48, 210, 96))
         d.rectangle((20, 56, 52, 68), fill=(255, 230, 70))
         d.rectangle((32, 68, 40, 86), fill=(255, 250, 220))
+    elif name == "mom":
+        d.ellipse((16, 16, 56, 58), fill=(230, 190, 160))
+        d.pieslice((14, 8, 58, 40), 180, 360, fill=(70, 48, 40))
+        d.rectangle((14, 20, 58, 28), fill=(70, 48, 40))
+        _eyes(d, 32)
+        d.arc((28, 40, 44, 52), 20, 160, fill=(140, 80, 80), width=2)
+        d.rectangle((16, 56, 56, 94), fill=(48, 56, 44))
+        d.rectangle((24, 56, 48, 78), fill=(150, 150, 148))
+    elif name == "teacher":
+        d.ellipse((16, 18, 56, 58), fill=(226, 188, 152))
+        d.rectangle((18, 10, 54, 22), fill=(40, 36, 36))
+        d.rectangle((22, 30, 30, 36), fill=(200, 200, 210))
+        d.rectangle((42, 30, 50, 36), fill=(200, 200, 210))
+        _eyes(d, 32)
+        d.line((30, 44, 42, 44), fill=(120, 80, 70), width=2)
+        d.rectangle((18, 56, 54, 94), fill=(80, 96, 120))
+        d.rectangle((24, 56, 48, 74), fill=(240, 240, 236))
+    elif name == "police":
+        d.ellipse((16, 16, 56, 56), fill=(220, 184, 150))
+        d.rectangle((14, 8, 58, 22), fill=(24, 36, 64))
+        _eyes(d, 30)
+        d.rectangle((18, 54, 54, 94), fill=(28, 48, 92))
+        d.rectangle((28, 58, 44, 68), fill=(200, 200, 196))
+    elif name == "curator":
+        d.ellipse((16, 16, 56, 56), fill=(210, 180, 150))
+        d.pieslice((14, 6, 58, 36), 180, 360, fill=(140, 140, 136))
+        d.rectangle((22, 30, 30, 36), fill=(220, 220, 230))
+        d.rectangle((42, 30, 50, 36), fill=(220, 220, 230))
+        _eyes(d, 30)
+        d.rectangle((18, 54, 54, 94), fill=(20, 80, 88))
+        d.rectangle((24, 56, 48, 72), fill=(240, 240, 236))
     else:
         d.ellipse((18, 16, 54, 54), fill=(80, 40, 120))
         d.rectangle((22, 54, 50, 94), fill=(40, 20, 60))
@@ -406,8 +455,26 @@ def all_scene_names() -> list[str]:
         "home_rain",
         "duty_room",
         "wave_plat",
+        "classroom",
+        "school_gate",
+        "school_hall",
+        "zhao_home",
+        "kitchen",
+        "police_st",
+        "stairwell",
+        "night_market",
+        "mall_3f",
+        "tape_listen",
+        "mall_food",
+        "mall_stairs",
+        "aqua_office",
+        "jellyfish",
+        "aqua_back",
+        "river_fog",
+        "taxi_rear",
+        "nameless_map",
     ]
 
 
 def all_portrait_names() -> list[str]:
-    return ["linxia", "qing", "zhou", "hai", "clerk"]
+    return ["linxia", "qing", "zhou", "hai", "clerk", "mom", "teacher", "police", "curator"]

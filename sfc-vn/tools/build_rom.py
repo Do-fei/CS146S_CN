@@ -23,7 +23,7 @@ from tools.snes_gfx import (  # noqa: E402
     pack_palette,
 )
 
-ROM_SIZE = 4 * 1024 * 1024
+ROM_SIZE = 8 * 1024 * 1024
 SCENE_NAMES = all_scene_names()
 SCENE_TILE_BYTES = 240 * 32
 OP_SCENE = 1
@@ -51,7 +51,7 @@ def write_header(rom: bytearray, title: str) -> None:
     rom[base : base + 21] = name
     rom[lorom_offset(0x80, 0xFFD5)] = 0x20
     rom[lorom_offset(0x80, 0xFFD6)] = 0x02
-    rom[lorom_offset(0x80, 0xFFD7)] = 0x0C
+    rom[lorom_offset(0x80, 0xFFD7)] = 0x0D
     rom[lorom_offset(0x80, 0xFFD8)] = 0x03
     rom[lorom_offset(0x80, 0xFFD9)] = 0x00
     rom[lorom_offset(0x80, 0xFFDA)] = 0x00
@@ -711,6 +711,12 @@ def build_rom() -> bytes:
     if a.addr > 0xF000:
         raise RuntimeError(f"engine overflow: {a.addr:04X}")
 
+    a.label("page_table")
+    page_table_off = a.offset()
+    a.emit(*([0] * (len(pages) * 3)))
+    if a.addr > 0xF000:
+        raise RuntimeError(f"page table overflow into F000: {a.addr:04X}")
+
     a.org(0x80, 0xF000)
     a.label("script_entry")
     # filled after script is placed
@@ -733,10 +739,6 @@ def build_rom() -> bytes:
     a.label("scene_table")
     scene_table_off = a.offset()
     a.emit(*([0] * (len(SCENE_NAMES) * 3)))
-
-    a.label("page_table")
-    page_table_off = a.offset()
-    a.emit(*([0] * (len(pages) * 3)))
     if a.addr >= 0xFFC0:
         raise RuntimeError("bank 80 overflow into header")
 
@@ -745,17 +747,30 @@ def build_rom() -> bytes:
 
     data_bank, data_addr = 0x82, 0x8000
 
+    def _advance_data_bank() -> None:
+        nonlocal data_bank, data_addr
+        data_bank += 1
+        data_addr = 0x8000
+        if data_bank == 0x100:
+            data_bank = 0x00
+        if data_bank in (0x7E, 0x7F):
+            data_bank = 0x80
+        if data_bank == 0x80:
+            raise RuntimeError("ROM data overflowed 8MB mapping")
+
     def put(data: bytes) -> tuple[int, int]:
         nonlocal data_bank, data_addr
         if data_addr + len(data) > 0x10000:
-            data_bank, data_addr = data_bank + 1, 0x8000
+            _advance_data_bank()
+        off = lorom_offset(data_bank, data_addr)
+        if off + len(data) > ROM_SIZE:
+            raise RuntimeError("ROM image overflow")
         bank, addr = data_bank, data_addr
         for byte in data:
             rom[lorom_offset(data_bank, data_addr)] = byte
             data_addr += 1
             if data_addr > 0xFFFF:
-                data_bank += 1
-                data_addr = 0x8000
+                _advance_data_bank()
         return bank, addr
 
     def write_ptr(label: str, bank: int, addr: int) -> None:

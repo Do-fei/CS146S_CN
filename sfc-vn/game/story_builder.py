@@ -5,6 +5,17 @@ from __future__ import annotations
 from game.nodes import ChoiceNode, EndingNode, Node, TextNode
 
 
+def splice_after(
+    pages: list[tuple[str, str, str, str]],
+    needle: str,
+    extra: list[tuple[str, str, str, str]],
+) -> list[tuple[str, str, str, str]]:
+    for i, page in enumerate(pages):
+        if needle in page[2]:
+            return pages[: i + 1] + extra + pages[i + 1 :]
+    raise KeyError(f"splice needle not found: {needle}")
+
+
 def chain(
     prefix: str,
     pages: list[tuple[str, str, str, str]],

@@ -24,6 +24,6 @@ def test_story_scenes_have_art() -> None:
 
 
 def test_long_enough_for_one_hour() -> None:
-    assert screen_count(16, 4) >= 200
-    assert estimate_minutes(STORY) >= 30
+    assert screen_count(16, 4) >= 600
+    assert estimate_minutes(STORY) >= 120
     assert len(collect_charset()) > 200
