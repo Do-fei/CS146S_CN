@@ -368,12 +368,14 @@ function onKey(ev) {
     k === "X" ||
     code === 23 ||
     code === 96 ||
-    code === 99;
+    code === 99 ||
+    code === 100;
   const menu =
     k === "Escape" ||
     k === "Backspace" ||
     k === "ContextMenu" ||
     code === 4 ||
+    code === 82 ||
     code === 97 ||
     code === 108 ||
     code === 109;

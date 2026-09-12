@@ -26,6 +26,8 @@ python3 -m http.server -d player 8765
 
 Pocket MICRO 可用实体键：十字键上下选，A／下键确定，B／Start 开菜单。若 AB 反了，在 AYASpace 把 ABXY 改成 Xbox 布局。也仍可用触摸。
 
+以后打 APK 时，这套按键逻辑可以继续用：网页同时听 **Android 键码**（十字键 19/20、A=96、B=97、Start=108）和 **Gamepad API**。WebView 里通常是键码在干活，Chrome 里才比较靠手柄 API。打包时不要在原生层把按键吃掉，返回键交给页面开菜单，不要直接 `finish()` 退出 Activity。
+
 - **点屏幕 / A / Z / 空格**：继续、确认
 - **↑↓ / 点选项**：移动或选定选项
 - **Start / B / Esc**：菜单，随时保存、读取或退出
