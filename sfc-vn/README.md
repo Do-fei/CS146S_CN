@@ -24,11 +24,15 @@ python3 -m http.server -d player 8765
 
 ### 在线试玩（GitHub Pages）
 
-推送到 `main` 或 `cursor/sfc-visual-novel-f6c3` 后，GitHub Actions 会自动构建并发布网页版：
+推送到 `main` 或 `cursor/sfc-visual-novel-f6c3` 后，GitHub Actions 会把 `player/` 发布到 **`gh-pages` 分支**。
+
+**首次启用（只需做一次）：** 打开仓库 [Settings → Pages](https://github.com/Do-fei/CS146S_CN/settings/pages)，Source 选 **Deploy from a branch**，Branch 选 **`gh-pages` / `/ (root)`**，保存。
+
+之后在线地址固定为：
 
 **https://do-fei.github.io/CS146S_CN/**
 
-也可在仓库 **Actions → Deploy SFC-VN Web Player → Run workflow** 手动触发一次部署。
+也可在 **Actions → Deploy SFC-VN Web Player → Run workflow** 手动触发部署。
 
 网页画布按 **3:2** 铺满窗口（960×640 及等比放大），方便在 AYANEO Pocket MICRO（3.5 寸 960×640 横屏）上玩。小屏建议浏览器「添加到主屏幕」全屏打开，字会更好认。
 
