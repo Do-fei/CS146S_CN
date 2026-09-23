@@ -22,6 +22,14 @@ python3 -m http.server -d player 8765
 
 然后访问 `http://127.0.0.1:8765`。
 
+### 在线试玩（GitHub Pages）
+
+推送到 `main` 或 `cursor/sfc-visual-novel-f6c3` 后，GitHub Actions 会自动构建并发布网页版：
+
+**https://do-fei.github.io/CS146S_CN/**
+
+也可在仓库 **Actions → Deploy SFC-VN Web Player → Run workflow** 手动触发一次部署。
+
 网页画布按 **3:2** 铺满窗口（960×640 及等比放大），方便在 AYANEO Pocket MICRO（3.5 寸 960×640 横屏）上玩。小屏建议浏览器「添加到主屏幕」全屏打开，字会更好认。
 
 Pocket MICRO 可用实体键：十字键上下选，A／下键确定，B／Start 开菜单。若 AB 反了，在 AYASpace 把 ABXY 改成 Xbox 布局。也仍可用触摸。
