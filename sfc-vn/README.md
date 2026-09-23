@@ -22,17 +22,30 @@ python3 -m http.server -d player 8765
 
 然后访问 `http://127.0.0.1:8765`。
 
-### 在线试玩（GitHub Pages）
+### 在线试玩（Railway，推荐）
 
-推送到 `main` 或 `cursor/sfc-visual-novel-f6c3` 后，GitHub Actions 会把 `player/` 发布到 **`gh-pages` 分支**。
+网页版已配好 Docker + `railway.toml`，适合长期挂一个公网地址，比 GitHub Pages 省事。
 
-**首次启用（只需做一次）：** 打开仓库 [Settings → Pages](https://github.com/Do-fei/CS146S_CN/settings/pages)，Source 选 **Deploy from a branch**，Branch 选 **`gh-pages` / `/ (root)`**，保存。
+**一次性设置（Dashboard 连 GitHub，最简单）：**
 
-之后在线地址固定为：
+1. 打开 [railway.com/new](https://railway.com/new) → **Deploy from GitHub repo** → 选 `Do-fei/CS146S_CN`
+2. **Root Directory** 填 `sfc-vn`（只部署游戏，不碰课程其它目录）
+3. 等构建完成 → 该 Service 的 **Settings → Networking → Generate Domain**，得到 `*.up.railway.app` 地址
+4. 以后每次 push 到连上的分支，Railway 会自动重新构建
 
-**https://do-fei.github.io/CS146S_CN/**
+**可选：GitHub Actions 触发部署**
 
-也可在 **Actions → Deploy SFC-VN Web Player → Run workflow** 手动触发部署。
+在仓库 Secrets 里加 `RAILWAY_TOKEN`（Project Token）和 `RAILWAY_SERVICE_ID`，push 后会跑 **Deploy SFC-VN to Railway**。Token 在 Railway 项目 **Settings → Tokens** 里生成。
+
+**本地 CLI 试部署：**
+
+```bash
+cd sfc-vn
+railway login
+railway init    # 新建或链到已有项目
+railway up
+railway domain  # 生成公网域名
+```
 
 网页画布按 **3:2** 铺满窗口（960×640 及等比放大），方便在 AYANEO Pocket MICRO（3.5 寸 960×640 横屏）上玩。小屏建议浏览器「添加到主屏幕」全屏打开，字会更好认。
 

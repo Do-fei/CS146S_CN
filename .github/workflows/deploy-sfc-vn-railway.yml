@@ -1,0 +1,28 @@
+name: Deploy SFC-VN to Railway
+
+on:
+  push:
+    branches:
+      - main
+      - cursor/sfc-visual-novel-f6c3
+    paths:
+      - "sfc-vn/**"
+      - ".github/workflows/deploy-sfc-vn-railway.yml"
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    # 在仓库 Secrets 里配置 RAILWAY_TOKEN 与 RAILWAY_SERVICE_ID 后自动部署
+    if: ${{ secrets.RAILWAY_TOKEN != '' && secrets.RAILWAY_SERVICE_ID != '' }}
+    container: ghcr.io/railwayapp/cli:latest
+    defaults:
+      run:
+        working-directory: sfc-vn
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Deploy to Railway
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+        run: railway redeploy --service "${{ secrets.RAILWAY_SERVICE_ID }}" --yes
