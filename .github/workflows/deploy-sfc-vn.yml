@@ -1,0 +1,43 @@
+name: Deploy SFC-VN Web Player
+
+on:
+  push:
+    branches:
+      - main
+      - cursor/sfc-visual-novel-f6c3
+    paths:
+      - "sfc-vn/**"
+      - ".github/workflows/deploy-sfc-vn.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: sfc-vn-pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: python3 -m pip install pillow
+
+      - name: Export web player
+        run: python3 tools/export_web.py
+        working-directory: sfc-vn
+
+      - name: Publish to gh-pages branch
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: sfc-vn/player
+          force_orphan: true
+          commit_message: "Deploy SFC-VN web player"
