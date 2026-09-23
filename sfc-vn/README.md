@@ -22,17 +22,38 @@ python3 -m http.server -d player 8765
 
 然后访问 `http://127.0.0.1:8765`。
 
-### 在线试玩（GitHub Pages，推荐）
+### 在线试玩（手机点链接即可）
 
-推送到 `main` 或 `cursor/sfc-visual-novel-f6c3` 后，Actions 会自动 `export_web.py` 并发布到 **`gh-pages` 分支**。
+Agent 每次更新后会自动把网页版推到 **`gh-pages` 分支**（或 Surge）。你只需**一次性**开通下面任一入口，以后改完剧本刷新链接就能玩。
 
-**首次启用（只需做一次）：** 打开 [Settings → Pages](https://github.com/Do-fei/CS146S_CN/settings/pages)，Source 选 **Deploy from a branch**，Branch 选 **`gh-pages` / `/ (root)`**，保存。
+#### 方案 A：GitHub Pages（推荐，免费）
 
-在线地址：
+**手机操作（约 30 秒，只做一次）：**
+
+1. 手机浏览器打开（需已登录 GitHub）：  
+   **https://github.com/Do-fei/CS146S_CN/settings/pages**
+2. **Build and deployment → Source** 选 **Deploy from a branch**
+3. **Branch** 选 **`gh-pages`**，文件夹 **`/ (root)`**，点 **Save**
+4. 等 1～2 分钟，收藏这个地址：
 
 **https://do-fei.github.io/CS146S_CN/**
 
-也可在 **Actions → Deploy SFC-VN Web Player → Run workflow** 手动触发部署。
+#### 方案 B：Surge（完全不用进 GitHub 设置）
+
+1. 手机打开 [surge.sh](https://surge.sh) 注册（邮箱 + 密码即可）
+2. 登录后 **Account → Token**，复制 Token
+3. 在 **Cursor 对话里发给 Agent**（一行即可：`SURGE_TOKEN=xxxx`）
+4. Agent 会代你部署并记住，固定地址：
+
+**https://city11-dawei.surge.sh**
+
+（也可在仓库 Secrets 里配置 `SURGE_TOKEN`，push 后 Actions 会自动更新 Surge。）
+
+#### 本地临时试玩
+
+```bash
+cd sfc-vn && python3 tools/export_web.py && python3 -m http.server -d player 8765
+```
 
 网页画布按 **3:2** 铺满窗口（960×640 及等比放大），方便在 AYANEO Pocket MICRO（3.5 寸 960×640 横屏）上玩。小屏建议浏览器「添加到主屏幕」全屏打开，字会更好认。
 

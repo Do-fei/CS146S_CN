@@ -41,3 +41,15 @@ jobs:
           publish_dir: sfc-vn/player
           force_orphan: true
           commit_message: "Deploy SFC-VN web player"
+
+      - name: Deploy to Surge (optional)
+        env:
+          SURGE_TOKEN: ${{ secrets.SURGE_TOKEN }}
+        run: |
+          if [ -z "$SURGE_TOKEN" ]; then
+            echo "::notice::未配置 SURGE_TOKEN，跳过 Surge。可改用 GitHub Pages 或把 Token 发给 Agent。"
+            exit 0
+          fi
+          npm install -g surge
+          surge sfc-vn/player city11-dawei.surge.sh --token "$SURGE_TOKEN"
+          echo "Surge: https://city11-dawei.surge.sh"
