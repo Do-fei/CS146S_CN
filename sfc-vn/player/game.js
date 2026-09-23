@@ -74,6 +74,26 @@ function escapeHtml(s) {
     .replace(/>/g, "&gt;");
 }
 
+let lastTouchAt = 0;
+
+/** 移动端 Chrome 上 click 常不可靠；pointerup 为主，click 仅作桌面回退。 */
+function bindTap(el, fn, { stop = true } = {}) {
+  if (!el) return;
+  let lastAt = 0;
+  const run = (ev, fromClick = false) => {
+    if (!fromClick && ev.pointerType === "mouse" && ev.button !== 0) return;
+    if (fromClick && Date.now() - lastTouchAt < 500) return;
+    if (stop) ev.stopPropagation();
+    const now = Date.now();
+    if (now - lastAt < 280) return;
+    lastAt = now;
+    if (!fromClick && ev.pointerType !== "mouse") lastTouchAt = now;
+    fn(ev);
+  };
+  el.addEventListener("pointerup", (ev) => run(ev, false));
+  el.addEventListener("click", (ev) => run(ev, true));
+}
+
 function renderText() {
   const n = node();
   $("place").textContent = n.place || "";
@@ -88,17 +108,12 @@ function renderText() {
       })
       .join("");
     $("text").innerHTML = prompt + opts;
-    $("hint").textContent = "上下选择　点选项或A确定";
+    $("hint").textContent = "上下选择　点选项确认";
     [...$("text").querySelectorAll(".choice")].forEach((el) => {
-      el.onclick = (ev) => {
-        ev.stopPropagation();
-        const i = Number(el.dataset.i);
-        if (state.choice === i) advance();
-        else {
-          state.choice = i;
-          renderText();
-        }
-      };
+      bindTap(el, () => {
+        state.choice = Number(el.dataset.i);
+        advance();
+      });
     });
     return;
   }
@@ -162,7 +177,7 @@ function showTitle() {
   $("place").textContent = "";
   $("who").textContent = "";
   $("text").textContent = `${state.data.title}\n${state.data.subtitle}\n\n${state.data.hint}`;
-  $("hint").textContent = "";
+  $("hint").textContent = "点选项或空白处确认　上下滑切换";
   drawOverlay();
 }
 
@@ -230,15 +245,15 @@ function drawOverlay() {
     .join("");
   $("panel").innerHTML = `<h2>${title}</h2>${items}`;
   [...$("panel").querySelectorAll(".item")].forEach((el) => {
+    const i = Number(el.dataset.i);
     el.onmouseenter = () => {
-      state.menuIndex = Number(el.dataset.i);
+      state.menuIndex = i;
       drawOverlay();
     };
-    el.onclick = (ev) => {
-      ev.stopPropagation();
-      state.menuIndex = Number(el.dataset.i);
+    bindTap(el, () => {
+      state.menuIndex = i;
       activateMenu();
-    };
+    });
   });
 }
 
@@ -314,7 +329,10 @@ function activateMenu() {
   if (kind === "load") {
     const saves = loadSaves();
     const slot = saves[i];
-    if (!slot) return;
+    if (!slot) {
+      $("hint").textContent = `槽 ${i + 1} 是空的`;
+      return;
+    }
     closeMenu();
     enterNode(slot.nodeId);
     state.page = slot.page || 0;
@@ -456,12 +474,48 @@ function pollGamepad() {
   requestAnimationFrame(pollGamepad);
 }
 
+const touchSwipe = { id: null, x0: 0, y0: 0 };
+let confirmAt = 0;
+
+function confirm(ev) {
+  if (ev?.target?.closest?.("#panel .item")) return;
+  const now = Date.now();
+  if (now - confirmAt < 280) return;
+  confirmAt = now;
+  tryFullscreen();
+  advance();
+}
+
+function onTouchMove(ev) {
+  if (!ev.touches || ev.touches.length !== 1) return;
+  const t = ev.touches[0];
+  if (touchSwipe.id == null) {
+    touchSwipe.id = t.identifier;
+    touchSwipe.x0 = t.clientX;
+    touchSwipe.y0 = t.clientY;
+    return;
+  }
+  if (t.identifier !== touchSwipe.id) return;
+  const dy = t.clientY - touchSwipe.y0;
+  if (Math.abs(dy) < 36) return;
+  if (Math.abs(dy) < Math.abs(t.clientX - touchSwipe.x0)) return;
+  move(dy < 0 ? -1 : 1);
+  touchSwipe.y0 = t.clientY;
+}
+
 async function main() {
   state.data = await (await fetch("story.json")).json();
   document.addEventListener("keydown", onKey);
-  $("screen").addEventListener("click", () => {
-    tryFullscreen();
-    advance();
+  bindTap($("screen"), confirm, { stop: false });
+  $("screen").addEventListener(
+    "touchmove",
+    (ev) => {
+      if (state.menu || (node() && node().type === "choice")) onTouchMove(ev);
+    },
+    { passive: true },
+  );
+  $("screen").addEventListener("touchend", () => {
+    touchSwipe.id = null;
   });
   window.addEventListener("gamepadconnected", () => {
     $("hint").textContent = "已识别手柄　A确定　上下选　Start菜单";

@@ -126,7 +126,9 @@ html, body {
 
 #text .choice {
   cursor: pointer;
-  padding: 0.05em 0;
+  padding: 0.35em 0;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
 }
 
 #text .choice.on {
@@ -166,9 +168,13 @@ html, body {
 }
 
 #panel .item {
-  padding: 0.35em 0.3em;
+  padding: 0.55em 0.45em;
   font-size: clamp(16px, 3.2cqh, 20px);
   cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+  -webkit-user-select: none;
 }
 #panel .item.active {
   background: #c9a46a;
