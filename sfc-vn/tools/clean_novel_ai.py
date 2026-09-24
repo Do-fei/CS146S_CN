@@ -18,14 +18,24 @@ _PADDING = re.compile(
 )
 
 
+_SCENE_TAG = re.compile(
+    r" (?:两站|三糖|四名|旧区|换皮|二漏|三帧|成功|妈妈|笔录|邻座|收束|"
+    r"好友|B面|编目|薄了|留灯|卡片|汤|海洋|泵房|玻璃|末班|日志|票根)·\d+。$"
+)
+
+
 def _is_padding(block: str) -> bool:
+    # vol6 unique scene blocks (ch38-49 rewrite)
+    if _SCENE_TAG.search(block):
+        return False
     if _PADDING.search(block):
         return True
     # template loop: "附近她又停一下，橘子皮排五线谱"
     if block.count("橘子皮排五线谱") and block.count("偶尔疼说明还当人"):
         return True
     if block.count("她抓你袖口，褶子在，你说在，她重复同桌在") > 0 and len(block) < 400:
-        return True
+        if not _SCENE_TAG.search(block):
+            return True
     return False
 
 
