@@ -51,27 +51,9 @@ def _dedupe(text: str) -> str:
 
 
 def _pad(body: str, extras: list[str], target: int) -> str:
-    body = _dedupe(body)
-    seen = {
-        hashlib.md5(re.sub(r"\s+", "", b).encode()).hexdigest()
-        for b in re.split(r"\n\n+", body.strip())
-        if b.strip() and not b.strip().startswith("#")
-    }
-    idx = 0
-    attempts = 0
-    max_attempts = max(len(extras) * 8, 6000)
-    while len(body) < target - 80 and attempts < max_attempts:
-        para = extras[idx % len(extras)]
-        idx += 1
-        attempts += 1
-        if FORBIDDEN.search(para):
-            continue
-        key = hashlib.md5(re.sub(r"\s+", "", para).encode()).hexdigest()
-        if key in seen:
-            continue
-        seen.add(key)
-        body = body.rstrip() + "\n\n" + para
-    return body + "\n"
+    raise RuntimeError(
+        "_pad disabled: use tools/pad_vol4_19_21.py hand banks, not loc/time loops"
+    )
 
 
 CLOSERS_19 = [
