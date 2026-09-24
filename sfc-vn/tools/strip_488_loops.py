@@ -50,11 +50,15 @@ def clean(text: str) -> str:
         block = block.strip()
         if not block:
             continue
+        block = SHOU_SUFFIX.sub("。", block)
         if block.startswith("#"):
             parts.append(block)
             continue
         if is_loop_block(block):
             continue
+        if SHOU_SUFFIX.search(block) or re.search(r"收束·\d+", block):
+            if len(block) < 350 and block.count("收束·") >= 1:
+                continue
         key = hashlib.md5(re.sub(r"\s+", "", block).encode()).hexdigest()
         if key in seen:
             continue
