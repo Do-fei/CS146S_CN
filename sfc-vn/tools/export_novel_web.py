@@ -41,3 +41,7 @@ def export_novel(out: Path) -> None:
         encoding="utf-8",
     )
     print(f"novel: {len(manifest)} chapters -> {out}")
+
+
+if __name__ == "__main__":
+    export_novel(ROOT / "player" / "novel")
