@@ -10,21 +10,25 @@
 <body>
   <header>
     <h1>十一点的城市 · 小说版</h1>
-    <p>约 106 万字 · 主人公大韦 · 主线路径：漏句</p>
+    <p>约 304 万字 · 50 章 · 主人公大韦 · 主线路径：漏句</p>
     <div class="nav-row">
       <a href="../index.html">返回游戏</a>
     </div>
   </header>
   <main>
     <p class="intro">
-      第二人称「你」，赵宜的同桌。卷一失踪与第三夜选路（含 23:17、好友列表深线），卷二–三西单倒带馆至漏句（含 B 面磁带、编目簿、薄了）；卷四为九个收场的侧写中篇。
+      第二人称「你」，赵宜的同桌。卷一失踪与选路，卷二–三倒带馆至漏句，卷四档案与三路线深线，卷五八个早晨，卷六正本后与九解收束。
     </p>
     <p class="section-title">卷一　同桌</p>
     <ul class="chapter-list" id="vol1"></ul>
     <p class="section-title">卷二–三　倒带馆 → 漏句</p>
     <ul class="chapter-list" id="vol2"></ul>
-    <p class="section-title">卷四　八个早晨</p>
+    <p class="section-title">卷四　档案与三路线</p>
+    <ul class="chapter-list" id="vol3"></ul>
+    <p class="section-title">卷五　八个早晨</p>
     <ul class="chapter-list" id="vol4"></ul>
+    <p class="section-title">卷六　正本后</p>
+    <ul class="chapter-list" id="vol5"></ul>
     <p class="status" id="status">加载目录…</p>
   </main>
   <script>
@@ -33,8 +37,18 @@
       "24-二十三点十七.md", "04-胡同.md", "05-第三夜.md", "06-胡同深.md",
       "07-便利店.md", "08-天桥.md", "25-好友列表.md",
     ]);
-    const vol2Max = 18;
     const vol2Extra = new Set(["26-磁带背面.md", "27-编目簿.md", "28-薄了.md"]);
+    const vol3 = new Set([
+      "29-班主任的灯.md", "30-空白卡片.md", "31-妈妈的汤.md",
+      "32-海洋馆一日.md", "33-泵房潮.md", "34-玻璃后.md",
+      "35-末班全程.md", "36-老周日志.md", "37-空白票根.md",
+    ]);
+    const vol5 = new Set([
+      "38-两站之间长.md", "39-第三颗糖.md", "40-第四个名字.md",
+      "41-崇文宣武.md", "42-城换皮.md", "43-第二个漏句.md",
+      "44-薄了长.md", "45-发送成功.md", "46-赵宜妈妈.md",
+      "47-警察笔记本.md", "48-试听间邻座.md", "49-百万分之一.md",
+    ]);
 
     function li(ch) {
       const a = document.createElement("a");
@@ -49,15 +63,19 @@
         document.getElementById("status").remove();
         const v1 = document.getElementById("vol1");
         const v2 = document.getElementById("vol2");
+        const v3 = document.getElementById("vol3");
         const v4 = document.getElementById("vol4");
+        const v5 = document.getElementById("vol5");
         for (const ch of chapters) {
           const item = document.createElement("li");
           item.appendChild(li(ch));
           const num = parseInt(ch.file, 10);
           if (vol1.has(ch.file)) v1.appendChild(item);
           else if (vol2Extra.has(ch.file)) v2.appendChild(item);
-          else if (!Number.isNaN(num) && num >= 9 && num <= vol2Max) v2.appendChild(item);
-          else if (!Number.isNaN(num) && num >= 19) v4.appendChild(item);
+          else if (vol3.has(ch.file)) v3.appendChild(item);
+          else if (vol5.has(ch.file)) v5.appendChild(item);
+          else if (!Number.isNaN(num) && num >= 9 && num <= 18) v2.appendChild(item);
+          else if (!Number.isNaN(num) && num >= 19 && num <= 23) v4.appendChild(item);
         }
       })
       .catch(() => {

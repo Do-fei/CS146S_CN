@@ -12,7 +12,9 @@ ROOT = Path(__file__).resolve().parents[1] / "docs" / "novel"
 
 _PADDING = re.compile(
     r"(不写进报告|停止后日常|漏句日常|回来的第|"
-    r"日常\d+，|第\d+周记|<!--MEGA|<!--EXPAND|<!--BIG|<!--PASS)"
+    r"日常\d+，|第\d+周记|<!--MEGA|<!--EXPAND|<!--BIG|<!--PASS|"
+    r"赵宜家第\d+次想起|第\d+次发送失败|第\d+段归途|第\d+遍翻簿|"
+    r"阿青在.{1,8}边看你|B面里，.{1,12}又转半圈)"
 )
 
 

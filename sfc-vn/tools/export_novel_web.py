@@ -25,8 +25,12 @@ def export_novel(out: Path) -> None:
     for old in chapters_dir.glob("*.md"):
         old.unlink()
 
+    def _chapter_key(path: Path) -> int:
+        m = re.match(r"(\d+)", path.name)
+        return int(m.group(1)) if m else 9999
+
     manifest: list[dict[str, str]] = []
-    for src in sorted(NOVEL_SRC.glob("[0-9]*.md")):
+    for src in sorted(NOVEL_SRC.glob("[0-9]*.md"), key=_chapter_key):
         text = src.read_text(encoding="utf-8")
         dest = chapters_dir / src.name
         dest.write_text(text, encoding="utf-8")
