@@ -10,14 +10,14 @@
 <body>
   <header>
     <h1>十一点的城市 · 小说版</h1>
-    <p>约 48.5 万字 · 主人公大韦 · 主线路径：漏句</p>
+    <p>约 106 万字 · 主人公大韦 · 主线路径：漏句</p>
     <div class="nav-row">
       <a href="../index.html">返回游戏</a>
     </div>
   </header>
   <main>
     <p class="intro">
-      第二人称「你」，赵宜的同桌。卷一失踪与第三夜选路，卷二–三西单倒带馆至漏句收场；卷四为另外八个早晨的侧写。
+      第二人称「你」，赵宜的同桌。卷一失踪与第三夜选路（含 23:17、好友列表深线），卷二–三西单倒带馆至漏句（含 B 面磁带、编目簿、薄了）；卷四为九个收场的侧写中篇。
     </p>
     <p class="section-title">卷一　同桌</p>
     <ul class="chapter-list" id="vol1"></ul>
@@ -29,10 +29,12 @@
   </main>
   <script>
     const vol1 = new Set([
-      "00-序.md", "01-发送失败.md", "02-空位.md", "03-赵宜家.md", "04-胡同.md",
-      "05-第三夜.md", "06-胡同深.md", "07-便利店.md", "08-天桥.md",
+      "00-序.md", "01-发送失败.md", "02-空位.md", "03-赵宜家.md",
+      "24-二十三点十七.md", "04-胡同.md", "05-第三夜.md", "06-胡同深.md",
+      "07-便利店.md", "08-天桥.md", "25-好友列表.md",
     ]);
     const vol2Max = 18;
+    const vol2Extra = new Set(["26-磁带背面.md", "27-编目簿.md", "28-薄了.md"]);
 
     function li(ch) {
       const a = document.createElement("a");
@@ -53,6 +55,7 @@
           item.appendChild(li(ch));
           const num = parseInt(ch.file, 10);
           if (vol1.has(ch.file)) v1.appendChild(item);
+          else if (vol2Extra.has(ch.file)) v2.appendChild(item);
           else if (!Number.isNaN(num) && num >= 9 && num <= vol2Max) v2.appendChild(item);
           else if (!Number.isNaN(num) && num >= 19) v4.appendChild(item);
         }
