@@ -12,6 +12,7 @@ sys.path.insert(0, str(ROOT))
 
 from game.story import story_to_plain
 from tools.art import all_portrait_names, all_scene_names, paint_portrait_web, paint_scene_web
+from tools.export_novel_web import export_novel
 
 
 def export(out: Path) -> None:
@@ -26,6 +27,7 @@ def export(out: Path) -> None:
         old_jpg = assets / f"portrait_{name}.jpg"
         if old_jpg.exists():
             old_jpg.unlink()
+    export_novel(out / "novel")
     print(f"exported {len(data['nodes'])} nodes, ~{data['minutes']} min")
 
 

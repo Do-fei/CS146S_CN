@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#0a0614" />
+  <title>十一点的城市 · 小说</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header>
+    <h1>十一点的城市 · 小说版</h1>
+    <p>约 10.7 万字 · 主线路径：漏句</p>
+    <div class="nav-row">
+      <a href="../index.html">返回游戏</a>
+    </div>
+  </header>
+  <main>
+    <p class="intro">
+      第二人称「你」，赵宜的同桌。卷一失踪前三天，卷二西单倒带馆，卷三停止键与漏句收场；卷四为另外八个早晨的侧写。
+    </p>
+    <p class="section-title">卷一　同桌</p>
+    <ul class="chapter-list" id="vol1"></ul>
+    <p class="section-title">卷二–三　倒带馆 → 漏句</p>
+    <ul class="chapter-list" id="vol2"></ul>
+    <p class="section-title">卷四　八个早晨</p>
+    <ul class="chapter-list" id="vol4"></ul>
+    <p class="status" id="status">加载目录…</p>
+  </main>
+  <script>
+    const vol1 = new Set(["00-序.md", "01-发送失败.md", "02-空位.md", "03-赵宜家.md", "04-胡同.md"]);
+    const vol2Max = 18;
+
+    function li(ch) {
+      const a = document.createElement("a");
+      a.href = `read.html?f=${encodeURIComponent(ch.file)}`;
+      a.innerHTML = `${ch.title}<small>${ch.file.replace(".md", "")}</small>`;
+      return a;
+    }
+
+    fetch("chapters.json")
+      .then((r) => r.json())
+      .then((chapters) => {
+        document.getElementById("status").remove();
+        const v1 = document.getElementById("vol1");
+        const v2 = document.getElementById("vol2");
+        const v4 = document.getElementById("vol4");
+        for (const ch of chapters) {
+          const item = document.createElement("li");
+          item.appendChild(li(ch));
+          const num = parseInt(ch.file, 10);
+          if (vol1.has(ch.file)) v1.appendChild(item);
+          else if (!Number.isNaN(num) && num >= 9 && num <= vol2Max) v2.appendChild(item);
+          else if (!Number.isNaN(num) && num >= 19) v4.appendChild(item);
+        }
+      })
+      .catch(() => {
+        document.getElementById("status").textContent = "目录加载失败，请刷新。";
+      });
+  </script>
+</body>
+</html>

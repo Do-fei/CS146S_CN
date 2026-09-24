@@ -36,7 +36,9 @@ Agent 每次更新后会自动把网页版推到 **`gh-pages` 分支**（或 Sur
 3. **Branch** 选 **`gh-pages`**，文件夹 **`/ (root)`**，点 **Save**
 4. 等 1～2 分钟，收藏这个地址：
 
-**https://do-fei.github.io/CS146S_CN/**
+**https://do-fei.github.io/CS146S_CN/**（游戏）
+
+**https://do-fei.github.io/CS146S_CN/novel/**（小说，章节连读）
 
 #### 方案 B：Surge（完全不用进 GitHub 设置）
 
