@@ -42,6 +42,11 @@ SUFFIX_TAIL = re.compile(
     r")\s*$"
 )
 
+# 488 万循环段落的裸尾（去编号后残留）
+BARE_CYCLE_TAIL = re.compile(
+    r"(?:老周两站之间|B面第三口气|空白卡片写待定)\s*。?\s*$"
+)
+
 SLOP = re.compile(
     r"(第\d+次|第\d+遍|第一节课后，|压进数学书|B面转半圈|"
     r"阿青在.{1,10}边看你|赵宜家第\d+次想起|"
@@ -66,6 +71,7 @@ def strip_suffix(block: str) -> str:
     while prev != block:
         prev = block
         block = SUFFIX_TAIL.sub("", block).strip()
+        block = BARE_CYCLE_TAIL.sub("", block).strip()
     block = block.replace("playback", "回放")
     block = block.replace("写不进报告", "写不进本子")
     block = block.replace("不写进报告", "不交给大路")
