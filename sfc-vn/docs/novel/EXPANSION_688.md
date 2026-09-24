@@ -22,10 +22,19 @@
 
 `第N次` / 编号后缀（`收束·4900` / `好友·123` / `（八月·100）`）/ `压进数学书` / `B面转半圈` / 模板堆叠
 
+## 文风（狐尾 × 远瞳）
+
+见 `STYLE_FOX_YUAN.md`。全书应用：
+
+```bash
+python3 tools/apply_fox_yuan_688.py
+```
+
 ## 验收
 
 ```bash
 python3 tools/expand_688.py
+python3 tools/apply_fox_yuan_688.py
 python3 tools/count_novel.py   # >= 6880000
 python3 tools/export_novel_web.py
 ```

@@ -21,7 +21,7 @@
 
 ## 规范
 
-`STYLE_1M.md` · `EXPANSION_3M.md`
+`STYLE_FOX_YUAN.md`（狐尾×远瞳融合）· `EXPANSION_688.md` · `STYLE_1M.md`
 
 ## 在线阅读
 
