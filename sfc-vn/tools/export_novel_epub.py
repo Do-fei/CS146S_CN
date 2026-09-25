@@ -135,6 +135,12 @@ def build_epub(out_path: Path) -> tuple[int, int]:
     epub.write_epub(str(out_path), book)
     elapsed = time.time() - t0
     size_mb = out_path.stat().st_size / (1024 * 1024)
+
+    pages_copy = ROOT / "player" / "novel" / out_path.name
+    pages_copy.parent.mkdir(parents=True, exist_ok=True)
+    pages_copy.write_bytes(out_path.read_bytes())
+    print(f"  also -> {pages_copy} (GitHub Pages)")
+
     return total_chars, size_mb, elapsed
 
 
