@@ -1,0 +1,59 @@
+plugins {
+    id "com.android.application"
+}
+
+android {
+    namespace "cn.dawei.city11"
+    compileSdk 34
+
+    defaultConfig {
+        applicationId "cn.dawei.city11"
+        minSdk 26
+        targetSdk 34
+        versionCode 1
+        versionName "1.0.0"
+    }
+
+    signingConfigs {
+        release {
+            storeFile file("../keystore/city11.jks")
+            storePassword "city11dawei"
+            keyAlias "city11"
+            keyPassword "city11dawei"
+        }
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            signingConfig signingConfigs.release
+        }
+        debug {
+            signingConfig signingConfigs.release
+        }
+    }
+}
+
+dependencies {
+    implementation "androidx.appcompat:appcompat:1.7.0"
+    implementation "androidx.webkit:webkit:1.12.1"
+}
+
+configurations.configureEach {
+    resolutionStrategy {
+        force "org.jetbrains.kotlin:kotlin-stdlib:1.8.22"
+        force "org.jetbrains.kotlin:kotlin-stdlib-jdk7:1.8.22"
+        force "org.jetbrains.kotlin:kotlin-stdlib-jdk8:1.8.22"
+    }
+}
+
+def playerDir = file("../../player")
+def assetDir = file("src/main/assets")
+
+tasks.register("syncPlayer", Copy) {
+    from(playerDir)
+    into(assetDir)
+    exclude "**/.DS_Store"
+}
+
+tasks.named("preBuild").configure { dependsOn("syncPlayer") }

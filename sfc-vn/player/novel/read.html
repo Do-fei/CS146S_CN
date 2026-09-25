@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#0a0614" />
+  <title>阅读 · 十一点的城市</title>
+  <link rel="stylesheet" href="style.css" />
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+</head>
+<body>
+  <header>
+    <h1 id="chapter-title">加载中…</h1>
+    <p id="chapter-meta"></p>
+    <div class="nav-row">
+      <a href="index.html">目录</a>
+      <a href="../index.html">游戏</a>
+    </div>
+  </header>
+  <main>
+    <article class="article" id="content"><p class="status">正在打开章节…</p></article>
+  </main>
+  <div class="bottom-bar">
+    <button type="button" id="prev">上一章</button>
+    <button type="button" id="next">下一章</button>
+  </div>
+  <script>
+    const params = new URLSearchParams(location.search);
+    const file = params.get("f");
+    let chapters = [];
+    let index = -1;
+
+    marked.setOptions({ gfm: true, breaks: false });
+
+    function render() {
+      if (index < 0 || index >= chapters.length) return;
+      const ch = chapters[index];
+      history.replaceState(null, "", `read.html?f=${encodeURIComponent(ch.file)}`);
+      document.getElementById("chapter-title").textContent = ch.title;
+      document.getElementById("chapter-meta").textContent = `${index + 1} / ${chapters.length}`;
+      document.getElementById("prev").disabled = index === 0;
+      document.getElementById("next").disabled = index === chapters.length - 1;
+      document.getElementById("content").innerHTML = '<p class="status">加载中…</p>';
+      fetch(`chapters/${encodeURIComponent(ch.file)}`)
+        .then((r) => r.text())
+        .then((md) => {
+          let html = marked.parse(md);
+          html = html.replace(/^<h1[^>]*>[\s\S]*?<\/h1>\s*/i, "");
+          document.getElementById("content").innerHTML = html;
+          window.scrollTo(0, 0);
+          try {
+            localStorage.setItem("city11_novel_last", ch.file);
+          } catch (_) {}
+        })
+        .catch(() => {
+          document.getElementById("content").innerHTML = '<p class="status">章节加载失败。</p>';
+        });
+    }
+
+    document.getElementById("prev").onclick = () => {
+      if (index > 0) {
+        index -= 1;
+        render();
+      }
+    };
+    document.getElementById("next").onclick = () => {
+      if (index < chapters.length - 1) {
+        index += 1;
+        render();
+      }
+    };
+
+    fetch("chapters.json")
+      .then((r) => r.json())
+      .then((list) => {
+        chapters = list;
+        index = chapters.findIndex((c) => c.file === file);
+        if (index < 0) index = 0;
+        render();
+      })
+      .catch(() => {
+        document.getElementById("content").innerHTML = '<p class="status">目录加载失败。</p>';
+      });
+  </script>
+</body>
+</html>

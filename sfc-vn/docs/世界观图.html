@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>《十一点的城市》世界观一张图</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { width: 1600px; background: #0b1020; }
+  body {
+    font-family: "WenQuanYi Micro Hei", "Droid Sans Fallback", sans-serif;
+    color: #dfe6f2;
+    padding: 48px 56px 56px;
+  }
+  .grain {
+    position: fixed; inset: 0; pointer-events: none; opacity: .5;
+    background-image:
+      radial-gradient(rgba(255,255,255,.05) 1px, transparent 1px),
+      radial-gradient(rgba(0,0,0,.35) 1px, transparent 1px);
+    background-size: 3px 3px, 5px 5px;
+    background-position: 0 0, 1px 2px;
+  }
+  h1 { font-size: 44px; letter-spacing: 2px; color: #ffd9a0; }
+  .sub { margin-top: 10px; font-size: 20px; color: #9fb0cc; }
+
+  .band {
+    margin-top: 28px; border-radius: 14px; padding: 22px 28px;
+    border: 1px solid rgba(255,255,255,.14);
+  }
+  .band h2 { font-size: 26px; margin-bottom: 10px; }
+  .band p { font-size: 18px; line-height: 1.7; color: #c7d2e6; }
+
+  .day { background: linear-gradient(180deg, #e9eef7 0%, #cfd9ea 100%); color: #26324a; }
+  .day h2 { color: #26324a; }
+  .day p { color: #3a4a68; }
+  .day .chips span {
+    display: inline-block; margin: 8px 10px 0 0; padding: 6px 14px;
+    background: #ffffffcc; border: 1px solid #9fb0cc; border-radius: 999px;
+    font-size: 16px; color: #33436a;
+  }
+
+  .seam {
+    margin-top: 20px; display: flex; align-items: center; gap: 24px;
+    background: linear-gradient(90deg, #1b2340, #2a2038 55%, #1b2340);
+    border: 1px solid #ffb45733; border-radius: 14px; padding: 20px 28px;
+  }
+  .clock {
+    flex: 0 0 auto; width: 132px; height: 132px; border-radius: 50%;
+    border: 4px solid #ffb457; display: flex; align-items: center; justify-content: center;
+    font-size: 30px; color: #ffb457; background: #131a30; font-weight: bold;
+  }
+  .seam .txt h2 { font-size: 28px; color: #ffcf8f; }
+  .seam .txt p { margin-top: 8px; font-size: 18px; line-height: 1.7; color: #cbb8d8; }
+
+  .night {
+    margin-top: 20px; background: linear-gradient(180deg, #101830, #0c1226);
+    border: 1px solid #3d4f7a; border-radius: 14px; padding: 24px 28px;
+  }
+  .night > h2 { font-size: 28px; color: #9fd0ff; margin-bottom: 6px; }
+  .night > p.lead { font-size: 18px; color: #b6c4dd; line-height: 1.7; margin-bottom: 18px; }
+
+  .routes { display: flex; gap: 20px; }
+  .route {
+    flex: 1; border-radius: 12px; padding: 18px 20px 20px;
+    border: 1px solid rgba(255,255,255,.16);
+  }
+  .route.tape  { background: linear-gradient(180deg, #2b1f14, #201709); border-color: #ffb45755; }
+  .route.aqua  { background: linear-gradient(180deg, #0f2436, #0a1a29); border-color: #57c8ff55; }
+  .route.rail  { background: linear-gradient(180deg, #23172b, #180f20); border-color: #c792ea55; }
+  .route h3 { font-size: 23px; }
+  .route.tape h3 { color: #ffcf8f; }
+  .route.aqua h3 { color: #8fd8ff; }
+  .route.rail h3 { color: #dcb2ff; }
+  .route .keeper { margin-top: 4px; font-size: 16px; color: #9fb0cc; }
+  .route .what { margin-top: 10px; font-size: 17px; line-height: 1.65; color: #d7deec; min-height: 116px; }
+  .route .rule { margin-top: 8px; font-size: 15.5px; color: #b9a68a; line-height: 1.6; min-height: 78px; }
+  .route.aqua .rule { color: #8fb6c9; }
+  .route.rail .rule { color: #b49ec9; }
+
+  .ends { margin-top: 14px; border-top: 1px dashed rgba(255,255,255,.25); padding-top: 12px; }
+  .end { display: flex; gap: 10px; margin-top: 9px; font-size: 16px; line-height: 1.55; }
+  .end b {
+    flex: 0 0 148px; color: #fff; font-weight: normal;
+    background: rgba(255,255,255,.10); border-radius: 8px; text-align: center;
+    padding: 4px 6px; height: fit-content;
+  }
+  .end span { color: #c7d2e6; padding-top: 3px; }
+  .end i { font-style: normal; color: #ffd9a0; }
+  .route.rail .end b { flex-basis: 208px; white-space: nowrap; }
+
+  .bottom { margin-top: 20px; display: flex; gap: 20px; }
+  .panel {
+    flex: 1; border-radius: 14px; padding: 20px 24px;
+    background: #11182c; border: 1px solid rgba(255,255,255,.14);
+  }
+  .panel h2 { font-size: 22px; color: #ffd9a0; margin-bottom: 10px; }
+  .panel li { font-size: 16.5px; line-height: 1.75; color: #c7d2e6; list-style: none; padding-left: 22px; position: relative; }
+  .panel li::before { content: "·"; position: absolute; left: 6px; color: #ffb457; }
+  .panel li b { color: #fff; font-weight: normal; border-bottom: 1px solid #ffb45788; }
+
+  .foot { margin-top: 22px; font-size: 17px; color: #9fb0cc; line-height: 1.7; text-align: center; }
+  .foot b { color: #ffd9a0; font-weight: normal; }
+</style>
+</head>
+<body>
+<div class="grain"></div>
+
+<h1>《十一点的城市》世界观一张图</h1>
+<div class="sub">赵宜失踪第三天。短信两行：十一点后来。别走大路。&nbsp;&nbsp;｜&nbsp;&nbsp;大韦游戏工作室</div>
+
+<div class="band day">
+  <h2>白天的北京（大路）</h2>
+  <p>上班、点名、立案的那一层。老师留着第三排靠窗的灯，妈妈守着一锅汤，警察在大路上等。他们是真心在找人，
+     可这条路只会把事情写成纸面上的东西。走通了，赵宜就成了「请假三天」，你也回去当普通学生。</p>
+  <div class="chips">
+    <span>点名册</span><span>请假条</span><span>结案报告</span><span>家长会</span><span>早读</span>
+  </div>
+</div>
+
+<div class="seam">
+  <div class="clock">22:59</div>
+  <div class="txt">
+    <h2>十一点，北京换皮肤</h2>
+    <p>不解释为什么，城就是会换。夜里的钟停在二十二点五十九，秒针抖着不肯跳。跳到六十，人就被交还给点名册。
+       两层城的接缝在<b>南城天桥</b>：桥下积水里没有雨，是一个晴朗的下午，赵宜坐在栏杆上吃橘子。倒影会跟你说话。答应它，就要换人。</p>
+  </div>
+</div>
+
+<div class="night">
+  <h2>夜里的北京（小路）</h2>
+  <p class="lead">赵宜不在某一个房间里等你救。她同时被三种东西保管着：一段声音，一个倒影，一趟车。
+     三条路都通向她，通向的她不一样。你选路，选的是见她的代价。每条路上只有一次真正的选择。</p>
+
+  <div class="routes">
+    <div class="route tape">
+      <h3>西单倒带馆</h3>
+      <div class="keeper">阿青管声音，耳廓里有磁带的驱动孔</div>
+      <div class="what">收的是人来不及说出口、又不甘心死掉的那句话，做成磁带。赵宜留下一盘「未完成」，
+        磁带断在「我选」两个字上。</div>
+      <div class="rule">这里的账：放一次，句子短一点。放到最后，说话的人从照片上变淡。听的人也会变薄。</div>
+      <div class="ends">
+        <div class="end"><b>听完整盘 → 静音</b><span>她被听完整，去了第四层。你在合影里让座。</span></div>
+        <div class="end"><b>交给阿青 → 馆藏</b><span>两个人都停在未完成，像两杯没喝完的豆浆。</span></div>
+        <div class="end"><b>按下停止 → 漏句</b><span>她带着漏句和疼，自己爬回人间。</span></div>
+      </div>
+    </div>
+
+    <div class="route aqua">
+      <h3>北京海洋馆</h3>
+      <div class="keeper">小海管水，衣服干着，人总是潮的</div>
+      <div class="what">玻璃里照出来的是另一座北京。岸上的北京催你快点，水里的北京让你停在二十二点五十九，
+        让你觉得被理解。赵宜喜欢被理解，所以她在水里站得稳。</div>
+      <div class="rule">这里的账：水箱一旦看清你，就会用你的名字给鱼起名。名字一多，岸上的人就轻。</div>
+      <div class="ends">
+        <div class="end"><b>蓝阀排空 → 随河</b><span>水退回规矩，她跟着水去了护城河。</span></div>
+        <div class="end"><b>红阀对调 → 对调</b><span>她上岸回白天，你留下当夜场展品。</span></div>
+        <div class="end"><b>白阀锁死 → 锁死</b><span>今晚谁也不动，两岸维持原样。</span></div>
+      </div>
+    </div>
+
+    <div class="route rail">
+      <h3>无名地铁</h3>
+      <div class="keeper">老周管路，开夜班车，把钟按在 22:59</div>
+      <div class="what">车往还没被叫出来的路开。没有站名，就不会被点名。窗外会有人用妈妈、老师、警察的脸朝你挥手。
+        脸是真的，那个站是大路伸过来的。</div>
+      <div class="rule">这里的账：车费是一枚两面都是赵宜的硬币。桥上放久的东西会变成站名。</div>
+      <div class="ends">
+        <div class="end"><b>坐到终点 → 无站名的早晨</b><span>她留在路线里，你用硬币换回白天。</span></div>
+        <div class="end"><b>下一站下车 → 空白站</b><span>白天完整还给你，她继续坐下去。这不算胆怯。</span></div>
+        <div class="end"><b>紧急制动 → 两站之间</b><span>停在不属于任何人的地方谈条件。她半透明地回来，
+          你每次坐车都要经过一段会喊你名字的空。</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="bottom">
+  <div class="panel">
+    <h2>夜里的规矩（就这几条）</h2>
+    <ul>
+      <li><b>别走大路</b>。大路安全，但会把人写成请假条。</li>
+      <li><b>先别喊她的名字</b>。一喊，水箱和广播就当成可以交换。</li>
+      <li><b>别答应倒影</b>。答应了就要换人。</li>
+      <li><b>别把整盘磁带听完</b>。说话的人完整，听的人薄。</li>
+      <li><b>别在二十三点后数水母</b>。数几只，馆外就灭几盏路灯。</li>
+      <li><b>甜的要沉</b>。沉住了，才不会飘进河，不会被报站冲走。</li>
+    </ul>
+  </div>
+  <div class="panel">
+    <h2>随身带的东西</h2>
+    <ul>
+      <li><b>橘子糖</b>是口令。对了，夜里的人给你让路。三颗，走一回少一颗。</li>
+      <li><b>便当</b>是证明。带着它，你还像一个会吃饭、会回家的人。</li>
+      <li><b>温热的硬币</b>是车费。店员找的那枚不用上车，留着记得自己会买东西。</li>
+      <li><b>名字</b>是全场最贵的东西。全城有称呼的只有四个人：赵宜、阿青、老周、小海。你只叫「你」。</li>
+    </ul>
+  </div>
+  <div class="panel">
+    <h2>这个游戏不做的事</h2>
+    <ul>
+      <li>不做侦探戏。没有线索板，没有嫌疑人，没有那扇「对的门」。</li>
+      <li>不做正确答案。九个结局并排放着，没有评分，没有隐藏结局。</li>
+      <li>不解释十一点。没有上古契约，没有系统面板，城自己换皮肤。</li>
+      <li>赵宜只说一句：选你最不怕后悔的。怕的那种，留给白天。</li>
+    </ul>
+  </div>
+</div>
+
+<div class="foot">
+  一句话说完：夜里的北京就是同一座城<b>不肯写进请假条的那一层</b>。你带着糖和便当下去，
+  用一次选择决定她怎么被留下、怎么回来，或者由你留下。
+</div>
+
+</body>
+</html>
