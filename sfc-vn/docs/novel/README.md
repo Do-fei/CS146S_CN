@@ -27,6 +27,13 @@
 
 **https://do-fei.github.io/CS146S_CN/novel/**
 
+## EPUB 下载
+
+```bash
+python3 sfc-vn/tools/export_novel_epub.py
+# 输出：sfc-vn/output/十一点的城市.epub
+```
+
 ## 大韦怎么出现
 
 - 序章点明；正文以「你」为主
